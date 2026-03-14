@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/echo-fade-memory/echo-fade-memory/pkg/config"
 	"github.com/echo-fade-memory/echo-fade-memory/pkg/core/engine"
@@ -37,8 +38,10 @@ func main() {
 
 	switch os.Args[1] {
 	case "store":
+		fallthrough
+	case "remember":
 		if len(os.Args) < 3 {
-			fmt.Fprintln(os.Stderr, "usage: echo-fade-memory store <content>")
+			fmt.Fprintln(os.Stderr, "usage: echo-fade-memory remember <content>")
 			os.Exit(1)
 		}
 		content := os.Args[2]
@@ -47,7 +50,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
 		}
-		fmt.Printf("stored: %s\n", m.ID)
+		fmt.Printf("stored: %s (%s)\n", m.ID, m.LifecycleState)
 	case "recall":
 		if len(os.Args) < 3 {
 			fmt.Fprintln(os.Stderr, "usage: echo-fade-memory recall <query>")
@@ -61,8 +64,48 @@ func main() {
 			os.Exit(1)
 		}
 		for i, r := range results {
-			fmt.Printf("%d. [%s] clarity=%.2f\n   %s\n\n", i+1, r.Memory.ID[:8], r.Memory.Clarity, r.Memory.ResidualContent)
+			fmt.Printf("%d. [%s] score=%.2f strength=%.2f freshness=%.2f stage=%s\n   %s\n   why=%s\n\n", i+1, r.Memory.ID[:8], r.Score, r.Strength, r.Freshness, r.DecayStage, r.Summary, strings.Join(r.WhyRecalled, ","))
 		}
+	case "reinforce":
+		if len(os.Args) < 3 {
+			fmt.Fprintln(os.Stderr, "usage: echo-fade-memory reinforce <memory_id>")
+			os.Exit(1)
+		}
+		m, err := eng.Reinforce(ctx, os.Args[2])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+		if m == nil {
+			fmt.Fprintln(os.Stderr, "memory not found")
+			os.Exit(1)
+		}
+		fmt.Printf("reinforced: %s (%d accesses)\n", m.ID, m.AccessCount)
+	case "ground":
+		if len(os.Args) < 3 {
+			fmt.Fprintln(os.Stderr, "usage: echo-fade-memory ground <memory_id>")
+			os.Exit(1)
+		}
+		res, err := eng.Ground(ctx, os.Args[2])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+		if res == nil {
+			fmt.Fprintln(os.Stderr, "memory not found")
+			os.Exit(1)
+		}
+		fmt.Printf("memory: %s\nsummary: %s\nsource: %s\n", res.MemoryID, res.Summary, res.Source)
+	case "forget":
+		if len(os.Args) < 3 {
+			fmt.Fprintln(os.Stderr, "usage: echo-fade-memory forget <memory_id>")
+			os.Exit(1)
+		}
+		if err := eng.Forget(ctx, os.Args[2]); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println("forgotten")
 	case "decay":
 		if err := eng.DecayAll(ctx); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -90,13 +133,16 @@ func main() {
 }
 
 func printUsage() {
-	fmt.Println(`echo-fade-memory - a storage system that forgets
+	fmt.Print(`echo-fade-memory - a storage system that forgets
 
 Usage:
-  echo-fade-memory store <content>   Store a memory
-  echo-fade-memory recall <query>    Recall memories by query
-  echo-fade-memory decay            Recompute decay for all memories
-  echo-fade-memory serve            Start HTTP API server
+  echo-fade-memory remember <content> Store a memory
+  echo-fade-memory recall <query>     Recall memories by query
+  echo-fade-memory reinforce <id>     Reinforce a memory
+  echo-fade-memory ground <id>        Show sources for a memory
+  echo-fade-memory forget <id>        Delete a memory
+  echo-fade-memory decay              Recompute decay for all memories
+  echo-fade-memory serve              Start HTTP API server
 
 Environment:
   DATA_PATH   Data directory (default: ./data)

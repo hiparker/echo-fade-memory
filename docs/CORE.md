@@ -6,9 +6,15 @@
 
 ## 定位：记忆中间件
 
-**不是完整 Agent 框架，而是「任何 Agent 都能接」的记忆层。**
+**不是完整 Agent 框架，而是「任何 Agent 都能接」的基础设施层记忆引擎。**
 
-Echo Fade Memory 作为**记忆中间件**存在：可被任意 Agent、Skill、RAG 系统或对话应用接入，提供统一的记忆能力，而不绑定特定框架或产品形态。
+Echo Fade Memory 作为**记忆中间件**存在：可被任意 Agent、Skill、RAG 系统或对话应用接入，提供统一的记忆生命周期能力，而不绑定特定框架或产品形态。
+
+分层边界应保持清晰：
+
+- `SKILL.md` / rules 属于策略层，负责“什么时候记、记什么、怎么用”
+- Agent framework 属于编排层，负责串联 tools / files / agents
+- Echo Fade Memory 属于基础设施层，负责“怎么存、怎么衰减、怎么召回、怎么回源、怎么遗忘”
 
 ---
 
@@ -17,10 +23,12 @@ Echo Fade Memory 作为**记忆中间件**存在：可被任意 Agent、Skill、
 | 能力 | 说明 |
 |------|------|
 | **写入** | 对话、文档、操作轨迹等任意可文本化的内容 |
-| **自动摘要** | 随时间从完整内容 → 摘要 → 关键词 → 残影的渐进抽象 |
+| **多形态记忆** | 原文、摘要、embedding、residual、source refs、lifecycle state 并存 |
+| **自动摘要 / 残留** | 随时间从完整内容 → 摘要 → 关键词 → 片段的渐进抽象 |
 | **遗忘** | 时间衰减 + 访问强化 + 情感加权，选择性保留 |
-| **冲突合并** | 同主题记忆的合并与去重（规划中） |
-| **Recall API** | 语义 + 关键词 + 实体多路召回，供上层按需调用 |
+| **Explainable Recall** | 返回 `score`、`strength`、`freshness`、`fuzziness`、`why_recalled`、`needs_grounding` |
+| **回源** | 记忆不够确定时返回 `source_refs`，由上层决定是否回查事实源 |
+| **冲突分组 / 版本化** | 同主题记忆先进入 `conflict_group`，用 `version` 保留演化轨迹 |
 | **时间衰减** | strength = f(t, access, importance, emotional)，可配置 |
 | **人格偏置** | 高 emotional_weight 的记忆衰减更慢，形成人格锚点 |
 
@@ -32,6 +40,22 @@ Echo Fade Memory 作为**记忆中间件**存在：可被任意 Agent、Skill、
 2. **无状态服务**：记忆层独立运行，不依赖特定 Agent 运行时
 3. **可配置**：衰减参数、存储后端、向量模型均可配置
 4. **可移植**：数据集中在 `DATA_PATH`，可备份、迁移、复现
+5. **可解释**：召回不应是黑盒，应能解释为何命中、为何建议回源
+6. **兼容上层策略**：与 Skill / Agent 编排层协作，而非替代它们
+
+---
+
+## 当前接口方向
+
+当前代码已开始对齐以下中间件语义：
+
+- `remember(event, meta)`
+- `recall(query, context)`
+- `reinforce(memory_id)`
+- `decay()`
+- `ground(memory_id)`
+- `forget(policy)`
+- `explain(recall_result | query)`
 
 ---
 

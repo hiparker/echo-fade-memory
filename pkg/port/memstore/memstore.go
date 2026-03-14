@@ -12,7 +12,7 @@ type MemoryStore interface {
 	List() ([]string, error)
 	ListAll() ([]*model.Memory, error)
 	UpdateAccess(id string, count int) error
-	UpdateDecay(id string, clarity float64, residualForm, residualContent string) error
+	UpdateDecay(id string, clarity float64, lifecycleState, residualForm, residualContent string) error
 	UpdateDecayBatch(updates []DecayUpdate) error
 	Close() error
 }
@@ -21,6 +21,7 @@ type MemoryStore interface {
 type DecayUpdate struct {
 	ID              string
 	Clarity         float64
+	LifecycleState  string
 	ResidualForm    string
 	ResidualContent string
 }

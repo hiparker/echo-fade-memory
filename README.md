@@ -1,8 +1,8 @@
 # Echo Fade Memory
 
-A storage system designed to **forget**. Data fades, distorts, and disappears over time—simulating human memory. Against the era of perfect digital memory.
+An **AI memory middleware** built for forgetting. It helps agents remember, decay, recall, ground, and eventually forget information in a controlled, explainable way.
 
-**定位**：记忆中间件 —— 不是完整 Agent 框架，而是「任何 Agent 都能接」的记忆层。核心能力：写入对话/文档/操作轨迹 → 自动摘要、遗忘、冲突合并 → recall API，支持时间衰减与人格偏置。详见 [docs/CORE.md](docs/CORE.md)。
+**定位**：面向 AI Agent 的可衰减记忆中间件。它不是完整 Agent 框架，也不是会话上下文替代品，而是基础设施层的记忆生命周期引擎。详见 [docs/CORE.md](docs/CORE.md)。
 
 ---
 
@@ -17,17 +17,19 @@ A storage system designed to **forget**. Data fades, distorts, and disappears ov
 
 ## Overview
 
-- **Forgetting as a feature**: Selective memory—noise sinks, important things sediment. Personality emerges from what we remember *and* what we forget.
-- **AI memory dilemma**: Current AI either remembers everything (context explosion) or nothing (reset). This project fills the gap with a continuum: clear ↔ fuzzy ↔ outline.
-- **Three-way recall**: Vector (semantic) + BM25 (keyword) + Knowledge Graph (entity). RRF fusion, clarity filtering.
+- **Forgetting as a feature**: this is not just a memory store, but a memory lifecycle engine.
+- **Explainable recall**: recall returns `score`, `strength`, `freshness`, `fuzziness`, `decay_stage`, `source`, `why_recalled`, and `needs_grounding`.
+- **Multi-form memory**: one memory can carry raw content, summary, embedding, residual content, lifecycle state, and source references.
+- **Pluggable runtime**: use it from CLI, HTTP API, and later MCP / SDK integrations.
 
 ---
 
 ## 概述
 
-- **遗忘即特性**：选择性记忆——噪音下沉，重要沉淀。人格从记住与遗忘中涌现。
-- **AI 记忆困境**：现有 AI 要么全记住（上下文爆炸），要么无记忆（每次重置）。本项目填补空白：清晰 ↔ 模糊 ↔ 轮廓。
-- **三路召回**：向量（语义）+ BM25（关键词）+ 知识图谱（实体）。RRF 融合，clarity 过滤。
+- **遗忘即特性**：不是单纯“存得更多”，而是让记忆按生命周期演化。
+- **可解释召回**：召回结果不仅有内容，还会返回 `score`、`strength`、`freshness`、`why_recalled`、`needs_grounding` 等字段。
+- **多形态记忆**：同一条记忆可同时拥有原文、摘要、embedding、残留内容、来源引用和生命周期状态。
+- **基础设施层定位**：上层 `SKILL` 或 agent framework 负责策略编排，本项目负责底层记忆执行。
 
 ---
 
@@ -42,16 +44,25 @@ ollama pull nomic-embed-text
 # Build
 make build
 
-# Store a memory
-./echo-fade-memory store "Project meeting: decided to use Go and Bleve for Phase 1"
+# Remember a memory
+./echo-fade-memory remember "Project meeting: decided to use Go and Bleve for Phase 1"
 
-# Recall
+# Recall with explainable fields
 ./echo-fade-memory recall "meeting decision"
+
+# Reinforce a memory after reuse
+./echo-fade-memory reinforce <memory_id>
+
+# Ground a fuzzy memory back to its sources
+./echo-fade-memory ground <memory_id>
 
 # HTTP API
 ./echo-fade-memory serve
-# POST /memories {"content":"..."}
-# GET /memories?q=query
+# POST /remember {"content":"...", "memory_type":"project", "source_refs":[...]}
+# GET /recall?q=query
+# POST /reinforce {"id":"..."}
+# GET /memories/:id/ground
+# POST /explain {"query":"..."}
 ```
 
 **Docker** (Ollama on host):
@@ -77,3 +88,31 @@ Copy `config.example.json` to `config.json` and customize:
 Env vars override config: `OLLAMA_URL`, `OLLAMA_MODEL`, `DECAY_LAMBDA`, `VECTOR_STORE_TYPE`, etc.
 
 **Priority**: Default < config.json < Env
+
+---
+
+## Memory Shape
+
+Each memory can include:
+
+- `content`: original text
+- `summary`: a compact recall-oriented representation
+- `memory_type`: `long_term`, `working`, `preference`, `project`, `goal`
+- `lifecycle_state`: `fresh`, `reinforced`, `weakening`, `blurred`, `archived`, `forgotten`
+- `source_refs`: provenance pointers such as chat/file/github/url
+- `residual_form` and `residual_content`: the current faded view
+- `conflict_group` and `version`: lightweight versioning scaffold for same-topic memories
+
+## API Snapshot
+
+Current HTTP endpoints:
+
+- `POST /remember`
+- `GET /recall`
+- `POST /reinforce`
+- `POST /forget`
+- `POST /explain`
+- `GET /memories/:id/ground`
+- `GET /memories/:id/reconstruct`
+
+Legacy compatibility endpoints are still available under `/memories`.
