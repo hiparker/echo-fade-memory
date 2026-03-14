@@ -325,7 +325,7 @@ data/
 | **MCP Server** | 可选，作为 Cursor/IDE 的 MCP 工具，AI 可直接 invoke                           |
 | **Skill 模板**   | 提供 `echo-fade-memory.skill` 示例，描述何时触发、如何调用                        |
 
-**设计原则**：接口简单、无状态、可配置。Docker 通过 env 指定 `OLLAMA_URL`、`DATA_PATH`、`PORT`。
+**设计原则**：接口简单、无状态、可配置。Docker 通过 env 指定 `EMBEDDING_URL`、`DATA_PATH`、`PORT`。
 
 ### 跨平台客户端安装
 

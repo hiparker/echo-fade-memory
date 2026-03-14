@@ -17,16 +17,11 @@ func NewProvider(cfg *config.Config) (Provider, error) {
 	e := &cfg.Embedding
 	model := e.Model
 	dim := e.Dimensions
-	if model == "" {
-		model = cfg.Ollama.Model
-	}
-	if dim == 0 {
-		dim = cfg.Ollama.Dimensions
-	}
+	url := e.URL
 
 	switch strings.ToLower(e.Type) {
 	case "ollama":
-		return ollama.New(cfg.Ollama.URL, model, dim), nil
+		return ollama.New(url, model, dim), nil
 	case "openai":
 		apiKey := e.APIKey
 		if apiKey == "" {
@@ -46,7 +41,7 @@ func NewProvider(cfg *config.Config) (Provider, error) {
 		}
 		return gemini.New(apiKey, e.BaseURL, model, dim)
 	default:
-		return ollama.New(cfg.Ollama.URL, model, dim), nil
+		return ollama.New(url, model, dim), nil
 	}
 }
 

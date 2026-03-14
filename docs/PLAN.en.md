@@ -317,7 +317,7 @@ Backup: `tar -czvf backup.tar.gz data/`; migrate: extract to new environment.
 | **MCP Server**| Optional; Cursor/IDE MCP tool; AI can invoke directly            |
 | **Skill template** | Provide `echo-fade-memory.skill` example, when to trigger, how to call |
 
-**Design principle**: Simple interface, stateless, configurable. Docker env: `OLLAMA_URL`, `DATA_PATH`, `PORT`.
+**Design principle**: Simple interface, stateless, configurable. Docker env: `EMBEDDING_URL`, `DATA_PATH`, `PORT`.
 
 ### Cross-Platform Client Install
 

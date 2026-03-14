@@ -1,7 +1,8 @@
 {
   "data_path": "./data",
   "port": 8080,
-  "ollama": {
+  "embedding": {
+    "type": "ollama",
     "url": "http://localhost:11434",
     "model": "nomic-embed-text",
     "dimensions": 768

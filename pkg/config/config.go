@@ -12,26 +12,22 @@ type Config struct {
 	DataPath    string            `json:"data_path"`
 	Port        int               `json:"port"`
 	Embedding   EmbeddingConfig   `json:"embedding"`
-	Ollama      OllamaConfig      `json:"ollama"`
 	Decay       DecayConfig       `json:"decay"`
 	VectorStore VectorStoreConfig `json:"vector_store"`
 	Storage     StorageConfig     `json:"storage"`
 }
 
 // EmbeddingConfig holds embedding provider settings.
+// Supports ollama, openai, gemini. Provider-specific fields:
+// - ollama: url (EMBEDDING_URL)
+// - openai/gemini: api_key (OPENAI_API_KEY / GOOGLE_API_KEY), base_url optional
 type EmbeddingConfig struct {
 	Type       string `json:"type"`        // ollama, openai, gemini
-	APIKey     string `json:"api_key"`      // for openai/gemini
-	BaseURL    string `json:"base_url"`     // optional override
-	Model      string `json:"model"`        // model name
-	Dimensions int    `json:"dimensions"`   // output dim, 0=default
-}
-
-// OllamaConfig holds Ollama embedding settings.
-type OllamaConfig struct {
-	URL        string `json:"url"`
-	Model      string `json:"model"`
-	Dimensions int    `json:"dimensions"`
+	URL        string `json:"url"`         // ollama base URL, e.g. http://localhost:11434
+	APIKey     string `json:"api_key"`     // openai/gemini
+	BaseURL    string `json:"base_url"`     // openai/gemini optional override
+	Model      string `json:"model"`       // model name
+	Dimensions int    `json:"dimensions"`  // output dim, 0=use provider default
 }
 
 // DecayConfig holds decay algorithm parameters.
@@ -71,10 +67,6 @@ func Default() *Config {
 		Port:     8080,
 		Embedding: EmbeddingConfig{
 			Type:       "ollama",
-			Model:      "nomic-embed-text",
-			Dimensions: 768,
-		},
-		Ollama: OllamaConfig{
 			URL:        "http://localhost:11434",
 			Model:      "nomic-embed-text",
 			Dimensions: 768,
@@ -119,8 +111,14 @@ func applyEnvOverrides(cfg *Config) {
 	if v := os.Getenv("EMBEDDING_TYPE"); v != "" {
 		cfg.Embedding.Type = v
 	}
+	if v := os.Getenv("EMBEDDING_URL"); v != "" {
+		cfg.Embedding.URL = v
+	}
 	if v := os.Getenv("EMBEDDING_API_KEY"); v != "" {
 		cfg.Embedding.APIKey = v
+	}
+	if v := os.Getenv("EMBEDDING_BASE_URL"); v != "" {
+		cfg.Embedding.BaseURL = v
 	}
 	if v := os.Getenv("EMBEDDING_MODEL"); v != "" {
 		cfg.Embedding.Model = v
@@ -128,17 +126,6 @@ func applyEnvOverrides(cfg *Config) {
 	if v := os.Getenv("EMBEDDING_DIMENSIONS"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			cfg.Embedding.Dimensions = n
-		}
-	}
-	if v := os.Getenv("OLLAMA_URL"); v != "" {
-		cfg.Ollama.URL = v
-	}
-	if v := os.Getenv("OLLAMA_MODEL"); v != "" {
-		cfg.Ollama.Model = v
-	}
-	if v := os.Getenv("OLLAMA_DIMENSIONS"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			cfg.Ollama.Dimensions = n
 		}
 	}
 	if v := os.Getenv("DECAY_TAU"); v != "" {
@@ -211,11 +198,14 @@ func resolveEmbedding(cfg *Config) {
 	if cfg.Embedding.Type == "" {
 		cfg.Embedding.Type = "ollama"
 	}
-	if cfg.Embedding.Model == "" {
-		cfg.Embedding.Model = cfg.Ollama.Model
+	if cfg.Embedding.URL == "" && cfg.Embedding.Type == "ollama" {
+		cfg.Embedding.URL = "http://localhost:11434"
+	}
+	if cfg.Embedding.Model == "" && cfg.Embedding.Type == "ollama" {
+		cfg.Embedding.Model = "nomic-embed-text"
 	}
 	if cfg.Embedding.Dimensions == 0 {
-		cfg.Embedding.Dimensions = cfg.Ollama.Dimensions
+		cfg.Embedding.Dimensions = 768
 	}
 }
 

@@ -42,9 +42,6 @@ func New(cfg *config.Config) (vector.Store, error) {
 	}
 	addr := host + ":" + strconv.Itoa(port)
 	dim := cfg.Embedding.Dimensions
-	if dim == 0 {
-		dim = cfg.Ollama.Dimensions
-	}
 	if dim <= 0 {
 		dim = 768
 	}

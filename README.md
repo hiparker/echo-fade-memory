@@ -65,11 +65,15 @@ make build
 # POST /explain {"query":"..."}
 ```
 
-**Docker** (Ollama on host):
+**Docker**:
 
 ```bash
+# 方式一：先启动 Ollama 容器 (ollama-nomic-embed-text)，再启动 echo-fade-memory
+./scripts/start-ollama-embedding.sh
 docker compose up --build
-# OLLAMA_URL=http://host.docker.internal:11434
+
+# 方式二：含 Ollama，自动拉取 nomic-embed-text
+docker compose -f docker-compose.ollama.yml up --build
 ```
 
 ---
@@ -80,12 +84,16 @@ Copy `config.example.json` to `config.json` and customize:
 
 | Section | Key | Description |
 |---------|-----|-------------|
-| ollama | url, model, dimensions | Ollama embedding API |
+| embedding | type, url, model, dimensions, api_key, base_url | `type`: ollama, openai, gemini; `url` for ollama; `api_key` for openai/gemini |
 | decay | tau, alpha, epsilon | strength = 1/(1+(t/τ)^α) × reinforce; tau=halflife, alpha=shape |
 | vector_store | type, path | `local` (default), `lancedb`, `milvus` |
 | storage | type, path | `sqlite` (default), `postgres` |
 
-Env vars override config: `OLLAMA_URL`, `OLLAMA_MODEL`, `DECAY_LAMBDA`, `VECTOR_STORE_TYPE`, etc.
+Env vars: `EMBEDDING_TYPE`, `EMBEDDING_URL`, `EMBEDDING_MODEL`, `EMBEDDING_API_KEY`, etc.
+
+**OpenAI**: `"embedding": {"type": "openai", "model": "text-embedding-3-small", "api_key": "sk-..."}` (or `OPENAI_API_KEY`)
+
+**Gemini**: `"embedding": {"type": "gemini", "model": "text-embedding-004", "api_key": "..."}` (or `GOOGLE_API_KEY`)
 
 **Priority**: Default < config.json < Env
 

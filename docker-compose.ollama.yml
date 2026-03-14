@@ -1,14 +1,19 @@
-# 无 Ollama 依赖：需先运行 scripts/start-ollama-embedding.sh 启动 ollama-nomic-embed-text 容器
+# 含 Ollama：单容器自动拉取 nomic-embed-text，开箱即用
 version: "3.8"
 
-networks:
-  default:
-    external: true
-    name: echo-fade-memory-net
-
 services:
+  ollama-nomic-embed-text:
+    image: ollama/ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    command: ["sh", "-c", "ollama serve & sleep 15 && ollama pull nomic-embed-text && wait"]
+
   echo-fade-memory:
     build: .
+    depends_on:
+      - ollama-nomic-embed-text
     ports:
       - "8080:8080"
     environment:
@@ -19,5 +24,7 @@ services:
       EMBEDDING_DIMENSIONS: "768"
     volumes:
       - echo-fade-data:/data
+
 volumes:
+  ollama_data:
   echo-fade-data:

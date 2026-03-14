@@ -146,7 +146,7 @@ Usage:
 
 Environment:
   DATA_PATH   Data directory (default: ./data)
-  OLLAMA_URL  Ollama API URL (default: http://localhost:11434)
+  EMBEDDING_URL  Embedding API URL for ollama (default: http://localhost:11434)
   CONFIG_PATH Config file (default: config.json)
 `)
 }
