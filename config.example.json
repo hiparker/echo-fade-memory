@@ -21,6 +21,7 @@
   "storage": {
     "type": "sqlite",
     "path": "",
+    "mysql_dsn": "",
     "postgres_dsn": ""
   }
 }

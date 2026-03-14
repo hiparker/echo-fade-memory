@@ -11,10 +11,20 @@ import (
 type Config struct {
 	DataPath    string            `json:"data_path"`
 	Port        int               `json:"port"`
+	Embedding   EmbeddingConfig   `json:"embedding"`
 	Ollama      OllamaConfig      `json:"ollama"`
 	Decay       DecayConfig       `json:"decay"`
 	VectorStore VectorStoreConfig `json:"vector_store"`
 	Storage     StorageConfig     `json:"storage"`
+}
+
+// EmbeddingConfig holds embedding provider settings.
+type EmbeddingConfig struct {
+	Type       string `json:"type"`        // ollama, openai, gemini
+	APIKey     string `json:"api_key"`      // for openai/gemini
+	BaseURL    string `json:"base_url"`     // optional override
+	Model      string `json:"model"`        // model name
+	Dimensions int    `json:"dimensions"`   // output dim, 0=default
 }
 
 // OllamaConfig holds Ollama embedding settings.
@@ -50,6 +60,7 @@ type VectorStoreConfig struct {
 type StorageConfig struct {
 	Type        string `json:"type"`
 	Path        string `json:"path"`
+	MySQLDSN    string `json:"mysql_dsn"`
 	PostgresDSN string `json:"postgres_dsn"`
 }
 
@@ -58,6 +69,11 @@ func Default() *Config {
 	return &Config{
 		DataPath: "./data",
 		Port:     8080,
+		Embedding: EmbeddingConfig{
+			Type:       "ollama",
+			Model:      "nomic-embed-text",
+			Dimensions: 768,
+		},
 		Ollama: OllamaConfig{
 			URL:        "http://localhost:11434",
 			Model:      "nomic-embed-text",
@@ -86,6 +102,7 @@ func Load(configPath string) (*Config, error) {
 		}
 	}
 	applyEnvOverrides(cfg)
+	resolveEmbedding(cfg)
 	resolvePaths(cfg)
 	return cfg, nil
 }
@@ -97,6 +114,20 @@ func applyEnvOverrides(cfg *Config) {
 	if v := os.Getenv("PORT"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			cfg.Port = n
+		}
+	}
+	if v := os.Getenv("EMBEDDING_TYPE"); v != "" {
+		cfg.Embedding.Type = v
+	}
+	if v := os.Getenv("EMBEDDING_API_KEY"); v != "" {
+		cfg.Embedding.APIKey = v
+	}
+	if v := os.Getenv("EMBEDDING_MODEL"); v != "" {
+		cfg.Embedding.Model = v
+	}
+	if v := os.Getenv("EMBEDDING_DIMENSIONS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			cfg.Embedding.Dimensions = n
 		}
 	}
 	if v := os.Getenv("OLLAMA_URL"); v != "" {
@@ -151,14 +182,40 @@ func applyEnvOverrides(cfg *Config) {
 	if v := os.Getenv("VECTOR_STORE_PATH"); v != "" {
 		cfg.VectorStore.Path = v
 	}
+	if v := os.Getenv("MILVUS_HOST"); v != "" {
+		cfg.VectorStore.MilvusHost = v
+	}
+	if v := os.Getenv("MILVUS_PORT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			cfg.VectorStore.MilvusPort = n
+		}
+	}
+	if v := os.Getenv("MILVUS_DB"); v != "" {
+		cfg.VectorStore.MilvusDB = v
+	}
 	if v := os.Getenv("STORAGE_TYPE"); v != "" {
 		cfg.Storage.Type = v
 	}
 	if v := os.Getenv("STORAGE_PATH"); v != "" {
 		cfg.Storage.Path = v
 	}
+	if v := os.Getenv("MYSQL_DSN"); v != "" {
+		cfg.Storage.MySQLDSN = v
+	}
 	if v := os.Getenv("POSTGRES_DSN"); v != "" {
 		cfg.Storage.PostgresDSN = v
+	}
+}
+
+func resolveEmbedding(cfg *Config) {
+	if cfg.Embedding.Type == "" {
+		cfg.Embedding.Type = "ollama"
+	}
+	if cfg.Embedding.Model == "" {
+		cfg.Embedding.Model = cfg.Ollama.Model
+	}
+	if cfg.Embedding.Dimensions == 0 {
+		cfg.Embedding.Dimensions = cfg.Ollama.Dimensions
 	}
 }
 
