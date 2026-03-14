@@ -11,20 +11,22 @@ import (
 	"github.com/echo-fade-memory/echo-fade-memory/pkg/basic/util/safe"
 	"github.com/echo-fade-memory/echo-fade-memory/pkg/config"
 	"github.com/echo-fade-memory/echo-fade-memory/pkg/core/decay"
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/core/embedding"
 	"github.com/echo-fade-memory/echo-fade-memory/pkg/core/model"
 	"github.com/echo-fade-memory/echo-fade-memory/pkg/core/transform"
+	"github.com/echo-fade-memory/echo-fade-memory/pkg/port/embedding"
+	"github.com/echo-fade-memory/echo-fade-memory/pkg/port/memstore"
 	"github.com/echo-fade-memory/echo-fade-memory/pkg/port/store"
+	"github.com/echo-fade-memory/echo-fade-memory/pkg/port/storefactory"
 	"github.com/google/uuid"
 )
 
 // Engine is the core memory engine.
 type Engine struct {
 	cfg           *config.Config
-	mem           store.MemoryStore
+	mem           memstore.MemoryStore
 	vector        store.VectorStore
 	bleve         *store.BleveStore
-	embed         *embedding.Client
+	embed         embedding.Provider
 	decay         decay.Params
 	mu            sync.RWMutex
 	lastDecayAt   time.Time
@@ -37,12 +39,12 @@ func New(cfg *config.Config) (*Engine, error) {
 		return nil, err
 	}
 
-	mem, err := store.NewMemoryStore(cfg)
+	mem, err := storefactory.NewMemoryStore(cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	vector, err := store.NewVectorStore(cfg)
+	vector, err := storefactory.NewVectorStore(cfg)
 	if err != nil {
 		mem.Close()
 		return nil, err
@@ -54,7 +56,11 @@ func New(cfg *config.Config) (*Engine, error) {
 		return nil, err
 	}
 
-	embed := embedding.NewOllamaClient(cfg.Ollama.URL, cfg.Ollama.Model, cfg.Ollama.Dimensions)
+	embed, err := embedding.NewProvider(cfg)
+	if err != nil {
+		mem.Close()
+		return nil, err
+	}
 	decayParams := decay.ParamsFromFull(decay.ParamsFromFullArgs{
 		Tau:          cfg.Decay.Tau,
 		Alpha:        cfg.Decay.Alpha,
@@ -213,7 +219,7 @@ func (e *Engine) DecayAll(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	updates := make([]store.DecayUpdate, len(memories))
+	updates := make([]memstore.DecayUpdate, len(memories))
 	workers := runtime.NumCPU()
 	if workers < 1 {
 		workers = 1
@@ -241,7 +247,7 @@ func (e *Engine) DecayAll(ctx context.Context) error {
 				stage := decay.ResidualFormFromClarity(strength, params)
 				residualForm := decay.ResidualFormName(stage)
 				residualContent := transform.ToResidualContinuous(m.Content, strength)
-				updates[base+j] = store.DecayUpdate{
+				updates[base+j] = memstore.DecayUpdate{
 					ID:              m.ID,
 					Clarity:         strength,
 					ResidualForm:    residualForm,
@@ -260,6 +266,9 @@ func (e *Engine) DecayAll(ctx context.Context) error {
 // Close closes all stores.
 func (e *Engine) Close() error {
 	_ = e.mem.Close()
+	if closer, ok := e.vector.(interface{ Close() error }); ok {
+		_ = closer.Close()
+	}
 	_ = e.bleve.Close()
 	return nil
 }
