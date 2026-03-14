@@ -1,10 +1,30 @@
 package transform
 
 import (
+	"math"
 	"strings"
 
-	"github.com/echo-fade-memory/echo-fade-memory/internal/model"
+	"github.com/echo-fade-memory/echo-fade-memory/pkg/core/model"
 )
+
+// ToResidualContinuous: strength in [0,1] → retain ratio. No stages.
+func ToResidualContinuous(content string, strength float64) string {
+	if strength >= 1 {
+		return content
+	}
+	runes := []rune(strings.TrimSpace(content))
+	if len(runes) == 0 {
+		return ""
+	}
+	n := int(math.Ceil(strength * float64(len(runes))))
+	if n <= 0 {
+		n = 1
+	}
+	if n >= len(runes) {
+		return content
+	}
+	return string(runes[:n]) + "…"
+}
 
 // Summarize produces a short summary (simplified: first N chars for MVP).
 func Summarize(text string, maxLen int) string {
@@ -12,7 +32,6 @@ func Summarize(text string, maxLen int) string {
 	if len(text) <= maxLen {
 		return text
 	}
-	// Simple truncation for MVP; could use LLM later
 	runes := []rune(text)
 	if len(runes) <= maxLen {
 		return string(runes)
@@ -26,10 +45,7 @@ func ExtractKeywords(text string, max int) string {
 	seen := make(map[string]bool)
 	var out []string
 	for _, w := range words {
-		if len(w) < 2 {
-			continue
-		}
-		if seen[w] {
+		if len(w) < 2 || seen[w] {
 			continue
 		}
 		seen[w] = true

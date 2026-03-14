@@ -1,0 +1,26 @@
+{
+  "data_path": "./data",
+  "port": 8080,
+  "ollama": {
+    "url": "http://localhost:11434",
+    "model": "nomic-embed-text",
+    "dimensions": 768
+  },
+  "decay": {
+    "cache_ttl_min": 5,
+    "tau": 90,
+    "alpha": 1.5,
+    "epsilon": 0.1
+  },
+  "vector_store": {
+    "type": "local",
+    "path": "",
+    "milvus_host": "",
+    "milvus_port": 19530
+  },
+  "storage": {
+    "type": "sqlite",
+    "path": "",
+    "postgres_dsn": ""
+  }
+}

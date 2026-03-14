@@ -5,29 +5,30 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 
 	"gonum.org/v1/gonum/floats"
 )
 
-// VectorStore provides vector similarity search (pure Go, no CGO).
-type VectorStore struct {
+// LocalVectorStore provides vector similarity search (pure Go, no CGO).
+type LocalVectorStore struct {
 	path    string
 	vectors map[string][]float32
 	mu      sync.RWMutex
 }
 
-// NewVectorStore creates or loads a simple file-based vector store.
-func NewVectorStore(path string) (*VectorStore, error) {
+// NewLocalVectorStore creates or loads a simple file-based vector store.
+func NewLocalVectorStore(path string) (*LocalVectorStore, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return nil, err
 	}
-	vs := &VectorStore{path: path, vectors: make(map[string][]float32)}
-	_ = vs.load() // ignore error if file doesn't exist
+	vs := &LocalVectorStore{path: path, vectors: make(map[string][]float32)}
+	_ = vs.load()
 	return vs, nil
 }
 
-func (vs *VectorStore) load() error {
+func (vs *LocalVectorStore) load() error {
 	data, err := os.ReadFile(vs.path)
 	if err != nil {
 		return err
@@ -35,7 +36,7 @@ func (vs *VectorStore) load() error {
 	return json.Unmarshal(data, &vs.vectors)
 }
 
-func (vs *VectorStore) save() error {
+func (vs *LocalVectorStore) save() error {
 	data, err := json.Marshal(vs.vectors)
 	if err != nil {
 		return err
@@ -43,8 +44,7 @@ func (vs *VectorStore) save() error {
 	return os.WriteFile(vs.path, data, 0644)
 }
 
-// Add stores a vector for the given ID.
-func (vs *VectorStore) Add(id string, vec []float32) error {
+func (vs *LocalVectorStore) Add(id string, vec []float32) error {
 	vs.mu.Lock()
 	defer vs.mu.Unlock()
 	if vs.vectors == nil {
@@ -54,8 +54,7 @@ func (vs *VectorStore) Add(id string, vec []float32) error {
 	return vs.save()
 }
 
-// Search returns top-k IDs by cosine similarity.
-func (vs *VectorStore) Search(ctx context.Context, query []float32, k int) ([]string, []float32, error) {
+func (vs *LocalVectorStore) Search(ctx context.Context, query []float32, k int) ([]string, []float32, error) {
 	vs.mu.RLock()
 	defer vs.mu.RUnlock()
 
@@ -63,20 +62,23 @@ func (vs *VectorStore) Search(ctx context.Context, query []float32, k int) ([]st
 		id    string
 		score float32
 	}
-	var results []score
 	query64 := make([]float64, len(query))
 	for i, v := range query {
 		query64[i] = float64(v)
 	}
+	normQ := floats.Norm(query64, 2)
+	if normQ < 1e-9 {
+		return nil, nil, nil
+	}
 
+	results := make([]score, 0, len(vs.vectors))
 	for id, vec := range vs.vectors {
 		vec64 := make([]float64, len(vec))
 		for i, v := range vec {
 			vec64[i] = float64(v)
 		}
-		normQ := floats.Norm(query64, 2)
 		normV := floats.Norm(vec64, 2)
-		if normQ < 1e-9 || normV < 1e-9 {
+		if normV < 1e-9 {
 			continue
 		}
 		sim := floats.Dot(query64, vec64) / (normQ * normV)
@@ -85,14 +87,7 @@ func (vs *VectorStore) Search(ctx context.Context, query []float32, k int) ([]st
 		}
 	}
 
-	// Sort by score desc (simple bubble for small n)
-	for i := 0; i < len(results)-1; i++ {
-		for j := i + 1; j < len(results); j++ {
-			if results[j].score > results[i].score {
-				results[i], results[j] = results[j], results[i]
-			}
-		}
-	}
+	sort.Slice(results, func(i, j int) bool { return results[i].score > results[j].score })
 	if k > len(results) {
 		k = len(results)
 	}
@@ -105,8 +100,7 @@ func (vs *VectorStore) Search(ctx context.Context, query []float32, k int) ([]st
 	return ids, scores, nil
 }
 
-// Remove removes a vector.
-func (vs *VectorStore) Remove(id string) error {
+func (vs *LocalVectorStore) Remove(id string) error {
 	vs.mu.Lock()
 	defer vs.mu.Unlock()
 	delete(vs.vectors, id)

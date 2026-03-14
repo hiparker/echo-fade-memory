@@ -7,9 +7,9 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/echo-fade-memory/echo-fade-memory/internal/api"
-	"github.com/echo-fade-memory/echo-fade-memory/internal/config"
-	"github.com/echo-fade-memory/echo-fade-memory/internal/engine"
+	"github.com/echo-fade-memory/echo-fade-memory/pkg/config"
+	"github.com/echo-fade-memory/echo-fade-memory/pkg/core/engine"
+	"github.com/echo-fade-memory/echo-fade-memory/pkg/portal/api"
 )
 
 func main() {
@@ -18,7 +18,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	cfg := config.Default()
+	configPath := os.Getenv("CONFIG_PATH")
+	if configPath == "" {
+		configPath = "config.json"
+	}
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		cfg = config.Default()
+	}
 	eng, err := engine.New(cfg)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -94,5 +101,6 @@ Usage:
 Environment:
   DATA_PATH   Data directory (default: ./data)
   OLLAMA_URL  Ollama API URL (default: http://localhost:11434)
+  CONFIG_PATH Config file (default: config.json)
 `)
 }

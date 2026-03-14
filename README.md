@@ -2,6 +2,8 @@
 
 A storage system designed to **forget**. Data fades, distorts, and disappears over time—simulating human memory. Against the era of perfect digital memory.
 
+**定位**：记忆中间件 —— 不是完整 Agent 框架，而是「任何 Agent 都能接」的记忆层。核心能力：写入对话/文档/操作轨迹 → 自动摘要、遗忘、冲突合并 → recall API，支持时间衰减与人格偏置。详见 [docs/CORE.md](docs/CORE.md)。
+
 ---
 
 ## Documentation
@@ -58,3 +60,20 @@ make build
 docker compose up --build
 # OLLAMA_URL=http://host.docker.internal:11434
 ```
+
+---
+
+## Configuration
+
+Copy `config.example.json` to `config.json` and customize:
+
+| Section | Key | Description |
+|---------|-----|-------------|
+| ollama | url, model, dimensions | Ollama embedding API |
+| decay | tau, alpha, epsilon | strength = 1/(1+(t/τ)^α) × reinforce; tau=halflife, alpha=shape |
+| vector_store | type, path | `local` (default), `lancedb`, `milvus` |
+| storage | type, path | `sqlite` (default), `postgres` |
+
+Env vars override config: `OLLAMA_URL`, `OLLAMA_MODEL`, `DECAY_LAMBDA`, `VECTOR_STORE_TYPE`, etc.
+
+**Priority**: Default < config.json < Env

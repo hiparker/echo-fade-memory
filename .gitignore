@@ -4,5 +4,6 @@
 /data/
 *.bleve
 *.db
+config.json
 # Keep go.sum for reproducible builds
 # go.sum

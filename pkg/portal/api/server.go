@@ -4,8 +4,14 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
-	"github.com/echo-fade-memory/echo-fade-memory/internal/engine"
+	"github.com/echo-fade-memory/echo-fade-memory/pkg/core/engine"
+)
+
+const (
+	maxBodyBytes = 1 << 20 // 1MB
+	maxRecallK   = 100
 )
 
 // Server provides HTTP API for the memory engine.
@@ -29,25 +35,18 @@ type StoreResponse struct {
 	ID string `json:"id"`
 }
 
-// RecallRequest is the request for recall.
-type RecallRequest struct {
-	Query      string  `json:"query"`
-	K          int     `json:"k,omitempty"`
-	MinClarity float64 `json:"min_clarity,omitempty"`
+// RecallItem is a single recalled memory.
+type RecallItem struct {
+	ID              string  `json:"id"`
+	Content         string  `json:"content"`
+	ResidualContent string  `json:"residual_content"`
+	Clarity         float64 `json:"clarity"`
+	Score           float64 `json:"score"`
 }
 
 // RecallResponse is the response for recall.
 type RecallResponse struct {
 	Results []RecallItem `json:"results"`
-}
-
-// RecallItem is a single recalled memory.
-type RecallItem struct {
-	ID             string  `json:"id"`
-	Content        string  `json:"content"`
-	ResidualContent string `json:"residual_content"`
-	Clarity        float64 `json:"clarity"`
-	Score          float64 `json:"score"`
 }
 
 // ServeHTTP implements http.Handler.
@@ -56,57 +55,72 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	switch r.URL.Path {
 	case "/memories", "/memories/":
-		if r.Method == http.MethodPost {
+		switch r.Method {
+		case http.MethodPost:
 			s.handleStore(w, r)
-			return
-		}
-		if r.Method == http.MethodGet {
+		case http.MethodGet:
 			s.handleRecall(w, r)
-			return
+		default:
+			writeJSONError(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
 	default:
 		http.NotFound(w, r)
 	}
 }
 
+func writeJSONError(w http.ResponseWriter, msg string, code int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
+}
+
 func (s *Server) handleStore(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
 	var req StoreRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, `{"error":"invalid json"}`, http.StatusBadRequest)
+		if strings.Contains(err.Error(), "too large") {
+			writeJSONError(w, "request body too large", http.StatusRequestEntityTooLarge)
+		} else {
+			writeJSONError(w, "invalid json", http.StatusBadRequest)
+		}
 		return
 	}
-	if req.Content == "" {
-		http.Error(w, `{"error":"content required"}`, http.StatusBadRequest)
+	content := strings.TrimSpace(req.Content)
+	if content == "" {
+		writeJSONError(w, "content required", http.StatusBadRequest)
 		return
 	}
 	if req.Importance == 0 {
 		req.Importance = 0.5
 	}
 
-	m, err := s.engine.Store(r.Context(), req.Content, req.Importance)
+	m, err := s.engine.Store(r.Context(), content, req.Importance)
 	if err != nil {
-		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+		writeJSONError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	json.NewEncoder(w).Encode(StoreResponse{ID: m.ID})
+	_ = json.NewEncoder(w).Encode(StoreResponse{ID: m.ID})
 }
 
 func (s *Server) handleRecall(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query().Get("q")
+	query := strings.TrimSpace(r.URL.Query().Get("q"))
 	if query == "" {
-		http.Error(w, `{"error":"q required"}`, http.StatusBadRequest)
+		writeJSONError(w, "q required", http.StatusBadRequest)
 		return
 	}
 	k := 5
 	if v := r.URL.Query().Get("k"); v != "" {
-		if n, _ := parseInt(v); n > 0 {
+		if n, _ := strconv.Atoi(v); n > 0 {
 			k = n
+			if k > maxRecallK {
+				k = maxRecallK
+			}
 		}
 	}
 
 	results, err := s.engine.Recall(r.Context(), query, k, 0)
 	if err != nil {
-		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusInternalServerError)
+		writeJSONError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -120,10 +134,5 @@ func (s *Server) handleRecall(w http.ResponseWriter, r *http.Request) {
 			Score:           r.Score,
 		}
 	}
-	json.NewEncoder(w).Encode(RecallResponse{Results: items})
-}
-
-func parseInt(s string) (int, bool) {
-	n, err := strconv.Atoi(s)
-	return n, err == nil
+	_ = json.NewEncoder(w).Encode(RecallResponse{Results: items})
 }

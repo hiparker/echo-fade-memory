@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 )
 
 // Client calls Ollama for embeddings.
@@ -23,7 +24,7 @@ func NewOllamaClient(baseURL, model string, dim int) *Client {
 		BaseURL: baseURL,
 		Model:   model,
 		Dim:     dim,
-		client:  &http.Client{},
+		client:  &http.Client{Timeout: 60 * time.Second},
 	}
 }
 
@@ -67,7 +68,6 @@ func (c *Client) Embed(ctx context.Context, text string) ([]float32, error) {
 		return nil, err
 	}
 
-	// Convert float64 to float32
 	vec := make([]float32, len(out.Embedding))
 	for i, v := range out.Embedding {
 		vec[i] = float32(v)
