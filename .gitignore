@@ -1,0 +1,8 @@
+/echo-fade-memory
+/echo-fade-memory-*
+*.exe
+/data/
+*.bleve
+*.db
+# Keep go.sum for reproducible builds
+# go.sum

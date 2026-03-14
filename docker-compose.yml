@@ -1,0 +1,15 @@
+version: "3.8"
+
+services:
+  echo-fade-memory:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      DATA_PATH: /data
+      OLLAMA_URL: http://host.docker.internal:11434
+    volumes:
+      - echo-fade-data:/data
+
+volumes:
+  echo-fade-data:
