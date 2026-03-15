@@ -63,6 +63,11 @@ type RecallItem struct {
 	SourceRefs      []model.SourceRef       `json:"source_refs,omitempty"`
 	WhyRecalled     []string                `json:"why_recalled,omitempty"`
 	Evidence        []engine.RecallEvidence `json:"evidence,omitempty"`
+	ConflictGroup   string                  `json:"conflict_group,omitempty"`
+	Version         int                     `json:"version,omitempty"`
+	LifecycleState  string                  `json:"lifecycle_state,omitempty"`
+	ConflictWarning bool                    `json:"conflict_warning,omitempty"`
+	Suppressed      []int                   `json:"suppressed_versions,omitempty"`
 }
 
 // RecallResponse is the response for recall.
@@ -87,8 +92,15 @@ type explainRequest struct {
 // ServeHTTP implements http.Handler.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	path := normalizePath(r.URL.Path)
 
-	switch r.URL.Path {
+	switch path {
+	case "/healthz", "/readyz":
+		if r.Method != http.MethodGet {
+			writeJSONError(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	case "/memories", "/memories/":
 		switch r.Method {
 		case http.MethodPost:
@@ -122,6 +134,16 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.handleForget(w, r)
+	case "/decay":
+		if r.Method != http.MethodPost {
+			writeJSONError(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if err := s.engine.DecayAll(r.Context()); err != nil {
+			writeJSONError(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "decayed"})
 	case "/explain":
 		if r.Method != http.MethodPost {
 			writeJSONError(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -129,12 +151,22 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		s.handleExplain(w, r)
 	default:
-		if strings.HasPrefix(r.URL.Path, "/memories/") {
-			s.handleMemorySubresource(w, r)
+		if strings.HasPrefix(path, "/memories/") {
+			s.handleMemorySubresource(w, r, path)
 			return
 		}
 		http.NotFound(w, r)
 	}
+}
+
+func normalizePath(path string) string {
+	if strings.HasPrefix(path, "/v1/") {
+		return strings.TrimPrefix(path, "/v1")
+	}
+	if path == "/v1" {
+		return "/"
+	}
+	return path
 }
 
 func writeJSONError(w http.ResponseWriter, msg string, code int) {
@@ -225,6 +257,11 @@ func (s *Server) handleRecall(w http.ResponseWriter, r *http.Request) {
 			SourceRefs:      r.SourceRefs,
 			WhyRecalled:     r.WhyRecalled,
 			Evidence:        r.Evidence,
+			ConflictGroup:   r.ConflictGroup,
+			Version:         r.Version,
+			LifecycleState:  r.LifecycleState,
+			ConflictWarning: r.ConflictWarn,
+			Suppressed:      r.Suppressed,
 		}
 	}
 	_ = json.NewEncoder(w).Encode(RecallResponse{Results: items})
@@ -295,13 +332,13 @@ func (s *Server) handleExplain(w http.ResponseWriter, r *http.Request) {
 	if k <= 0 {
 		k = 5
 	}
-	results, err := s.engine.Recall(r.Context(), req.Query, k, req.MinClarity)
+	result, err := s.engine.Explain(r.Context(), req.Query, k, req.MinClarity)
 	if err != nil {
 		writeJSONError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	items := make([]RecallItem, len(results))
-	for i, result := range results {
+	items := make([]RecallItem, len(result.Accepted))
+	for i, result := range result.Accepted {
 		items[i] = RecallItem{
 			ID:              result.MemoryID,
 			Content:         result.Memory.Content,
@@ -319,15 +356,41 @@ func (s *Server) handleExplain(w http.ResponseWriter, r *http.Request) {
 			SourceRefs:      result.SourceRefs,
 			WhyRecalled:     result.WhyRecalled,
 			Evidence:        result.Evidence,
+			ConflictGroup:   result.ConflictGroup,
+			Version:         result.Version,
+			LifecycleState:  result.LifecycleState,
+			ConflictWarning: result.ConflictWarn,
+			Suppressed:      result.Suppressed,
 		}
 	}
-	_ = json.NewEncoder(w).Encode(RecallResponse{Results: items})
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
+		"query":    result.Query,
+		"accepted": items,
+		"filtered": result.Filtered,
+	})
 }
 
-func (s *Server) handleMemorySubresource(w http.ResponseWriter, r *http.Request) {
-	path := strings.TrimPrefix(r.URL.Path, "/memories/")
+func (s *Server) handleMemorySubresource(w http.ResponseWriter, r *http.Request, normalizedPath string) {
+	path := strings.TrimPrefix(normalizedPath, "/memories/")
 	parts := strings.Split(strings.Trim(path, "/"), "/")
-	if len(parts) != 2 || r.Method != http.MethodGet {
+	if r.Method != http.MethodGet {
+		http.NotFound(w, r)
+		return
+	}
+	if len(parts) == 1 && parts[0] != "" {
+		res, err := s.engine.Get(r.Context(), parts[0])
+		if err != nil {
+			writeJSONError(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if res == nil {
+			writeJSONError(w, "memory not found", http.StatusNotFound)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(res)
+		return
+	}
+	if len(parts) != 2 {
 		http.NotFound(w, r)
 		return
 	}
@@ -354,6 +417,17 @@ func (s *Server) handleMemorySubresource(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		_ = json.NewEncoder(w).Encode(res)
+	case "versions":
+		results, err := s.engine.Versions(r.Context(), id)
+		if err != nil {
+			writeJSONError(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if results == nil {
+			writeJSONError(w, "memory not found", http.StatusNotFound)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"results": results})
 	default:
 		http.NotFound(w, r)
 	}

@@ -25,7 +25,8 @@ func main() {
 	}
 	cfg, err := config.Load(configPath)
 	if err != nil {
-		cfg = config.Default()
+		fmt.Fprintf(os.Stderr, "error loading config: %v\n", err)
+		os.Exit(1)
 	}
 	eng, err := engine.New(cfg)
 	if err != nil {
@@ -145,7 +146,9 @@ Usage:
   echo-fade-memory serve              Start HTTP API server
 
 Environment:
-  DATA_PATH   Data directory (default: ./data)
+  DATA_PATH   Data directory (default: ~/.echo-fade-memory/workspaces/<workspace>/data)
+  ECHO_FADE_MEMORY_HOME  Runtime root (default: ~/.echo-fade-memory)
+  ECHO_FADE_MEMORY_WORKSPACE  Override workspace id for data isolation
   EMBEDDING_URL  Embedding API URL for ollama (default: http://localhost:11434)
   CONFIG_PATH Config file (default: config.json)
 `)
