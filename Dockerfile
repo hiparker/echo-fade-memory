@@ -1,6 +1,9 @@
 # Build stage
 FROM golang:1.26-alpine AS builder
-RUN apk add --no-cache gcc musl-dev ca-certificates
+# APK_MIRROR: 国内用 mirrors.aliyun.com 加速；海外留空用默认
+ARG APK_MIRROR=mirrors.aliyun.com
+RUN if [ -n "$APK_MIRROR" ]; then sed -i "s/dl-cdn.alpinelinux.org/$APK_MIRROR/g" /etc/apk/repositories; fi && \
+    apk add --no-cache gcc musl-dev ca-certificates
 WORKDIR /app
 
 COPY go.mod go.sum ./
@@ -18,7 +21,9 @@ RUN ARCH=$(go env GOARCH) && \
 
 # Run stage
 FROM alpine:3.19
-RUN apk add --no-cache ca-certificates
+ARG APK_MIRROR=mirrors.aliyun.com
+RUN if [ -n "$APK_MIRROR" ]; then sed -i "s/dl-cdn.alpinelinux.org/$APK_MIRROR/g" /etc/apk/repositories; fi && \
+    apk add --no-cache ca-certificates
 WORKDIR /app
 
 COPY --from=builder /app/echo-fade-memory .
