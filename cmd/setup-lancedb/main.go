@@ -11,11 +11,14 @@ package main
 import (
 	"archive/tar"
 	"compress/gzip"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -23,10 +26,10 @@ import (
 )
 
 const (
-	version     = "v0.1.2"
-	baseURL     = "https://github.com/lancedb/lancedb-go/releases/download/" + version
-	headerName  = "lancedb.h"
-	archiveName = "lancedb-go-native-binaries.tar.gz"
+	headerName           = "lancedb.h"
+	archiveName          = "lancedb-go-native-binaries.tar.gz"
+	defaultGoSourceURL   = "https://github.com/lancedb/lancedb-go.git"
+	defaultRustSourceURL = "https://github.com/lancedb/lancedb.git"
 )
 
 func main() {
@@ -35,8 +38,10 @@ func main() {
 	flag.Parse()
 
 	runtimeHome := getRuntimeHome()
+	version := getVersion()
 	platform, arch := platformArch()
 	platformArch := platform + "_" + arch
+	releaseBases := getReleaseBaseURLs(version)
 
 	includeDir := filepath.Join(runtimeHome, "include")
 	libDir := filepath.Join(runtimeHome, "lib", platformArch)
@@ -49,43 +54,41 @@ func main() {
 		fatal("mkdir lib: %v", err)
 	}
 
-	// Determine strategy: Windows or --static always use archive
-	useArchive := platform == "windows" || *static
+	assetName := ""
+	archiveFallback := false
 	var libTarget string
 
-	if useArchive {
-		archivePath := filepath.Join(libDir, archiveName)
-		if err := downloadIfNeeded(baseURL+"/"+archiveName, archivePath, *force); err != nil {
-			fatal("archive: %v", err)
-		}
-		if err := extractFromArchive(archivePath, "include/"+headerName, headerTarget, *force); err != nil {
-			fatal("extract header: %v", err)
-		}
-		libTarget = filepath.Join(libDir, "liblancedb_go.a")
-		if err := extractFromArchive(archivePath, "lib/"+platformArch+"/liblancedb_go.a", libTarget, *force); err != nil {
-			fatal("extract lib: %v", err)
-		}
-		if platform == "windows" {
-			fmt.Println("==> note: windows uses static library from release archive")
-		}
+	if *static {
+		assetName = "liblancedb_go.a"
 	} else {
-		// Direct download for darwin/linux dynamic libs
-		headerURL := baseURL + "/" + headerName
-		if err := downloadIfNeeded(headerURL, headerTarget, *force); err != nil {
-			fatal("header: %v", err)
-		}
-		var assetName string
 		switch platform {
 		case "darwin":
 			assetName = "liblancedb_go.dylib"
 		case "linux":
 			assetName = "liblancedb_go.so"
+		case "windows":
+			archiveFallback = true
 		default:
 			fatal("unsupported platform: %s", platform)
 		}
-		libTarget = filepath.Join(libDir, assetName)
-		if err := downloadIfNeeded(baseURL+"/"+assetName, libTarget, *force); err != nil {
-			fatal("library: %v", err)
+	}
+
+	releaseErr := setupFromReleases(releaseBases, headerTarget, libDir, platformArch, assetName, *force, archiveFallback)
+	if releaseErr == nil {
+		if archiveFallback {
+			libTarget = filepath.Join(libDir, "liblancedb_go.a")
+			if platform == "windows" {
+				fmt.Println("==> note: windows uses static library from release archive")
+			}
+		} else {
+			libTarget = filepath.Join(libDir, assetName)
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "==> release download failed: %v\n", releaseErr)
+		var sourceErr error
+		libTarget, sourceErr = buildFromSource(version, platform, arch, headerTarget, libDir, *static)
+		if sourceErr != nil {
+			fatal("release download failed and source fallback failed: %v", errors.Join(releaseErr, sourceErr))
 		}
 	}
 
@@ -123,6 +126,33 @@ func getRuntimeHome() string {
 	return filepath.Join(home, ".echo-fade-memory")
 }
 
+func getVersion() string {
+	if v := strings.TrimSpace(os.Getenv("LANCEDB_GO_VERSION")); v != "" {
+		return v
+	}
+	return "v0.1.2"
+}
+
+func getReleaseBaseURLs(version string) []string {
+	if raw := strings.TrimSpace(os.Getenv("LANCEDB_GO_RELEASE_BASE_URLS")); raw != "" {
+		var bases []string
+		for _, item := range strings.Split(raw, ",") {
+			item = strings.TrimSpace(item)
+			if item == "" {
+				continue
+			}
+			bases = append(bases, strings.TrimRight(item, "/"))
+		}
+		if len(bases) > 0 {
+			return bases
+		}
+	}
+	if raw := strings.TrimSpace(os.Getenv("LANCEDB_GO_RELEASE_BASE_URL")); raw != "" {
+		return []string{strings.TrimRight(raw, "/")}
+	}
+	return []string{"https://github.com/lancedb/lancedb-go/releases/download/" + version}
+}
+
 func platformArch() (platform, arch string) {
 	platform = runtime.GOOS
 	arch = runtime.GOARCH
@@ -145,15 +175,62 @@ func platformArch() (platform, arch string) {
 	return "", ""
 }
 
-func downloadIfNeeded(url, target string, force bool) error {
+func setupFromReleases(baseURLs []string, headerTarget, libDir, platformArch, assetName string, force, archiveFallback bool) error {
+	if err := downloadFromBases(baseURLs, headerName, headerTarget, force); err != nil {
+		return fmt.Errorf("header: %w", err)
+	}
+	if !archiveFallback {
+		libTarget := filepath.Join(libDir, assetName)
+		if err := downloadFromBases(baseURLs, assetName, libTarget, force); err != nil {
+			return fmt.Errorf("library: %w", err)
+		}
+		return nil
+	}
+
+	archivePath := filepath.Join(libDir, archiveName)
+	if err := downloadFromBases(baseURLs, archiveName, archivePath, force); err != nil {
+		return fmt.Errorf("archive: %w", err)
+	}
+	if err := extractFromArchive(archivePath, "include/"+headerName, headerTarget, force); err != nil {
+		return fmt.Errorf("extract header: %w", err)
+	}
+	libTarget := filepath.Join(libDir, "liblancedb_go.a")
+	if err := extractFromArchive(archivePath, "lib/"+platformArch+"/liblancedb_go.a", libTarget, force); err != nil {
+		return fmt.Errorf("extract lib: %w", err)
+	}
+	return nil
+}
+
+func downloadFromBases(baseURLs []string, assetName, target string, force bool) error {
 	if !force {
 		if _, err := os.Stat(target); err == nil {
 			fmt.Println("==> reuse", filepath.Base(target))
 			return nil
 		}
 	}
-	fmt.Println("==> downloading", filepath.Base(target))
-	return download(url, target)
+
+	var errs []error
+	for _, baseURL := range baseURLs {
+		assetURL := strings.TrimRight(baseURL, "/") + "/" + assetName
+		fmt.Println("==> downloading", filepath.Base(target), "from", hostOf(assetURL))
+		if err := download(assetURL, target); err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		return nil
+	}
+	if len(errs) == 0 {
+		return fmt.Errorf("no release base urls configured for %s", assetName)
+	}
+	return errors.Join(errs...)
+}
+
+func hostOf(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil || u.Host == "" {
+		return rawURL
+	}
+	return u.Host
 }
 
 func download(url, target string) error {
@@ -178,6 +255,144 @@ func download(url, target string) error {
 		return err
 	}
 	return os.Rename(tmp, target)
+}
+
+func buildFromSource(version, platform, arch, headerTarget, libDir string, static bool) (string, error) {
+	if platform == "windows" {
+		return "", fmt.Errorf("source fallback is not yet supported on windows; please provide release assets instead")
+	}
+
+	required := []string{"git", "cargo", "rustup", "cbindgen"}
+	for _, name := range required {
+		if _, err := exec.LookPath(name); err != nil {
+			return "", fmt.Errorf("missing %s for source fallback", name)
+		}
+	}
+
+	workDir, err := os.MkdirTemp("", "setup-lancedb-*")
+	if err != nil {
+		return "", err
+	}
+	defer os.RemoveAll(workDir)
+
+	sourceDir := filepath.Join(workDir, "lancedb-go")
+	sourceURL := strings.TrimSpace(os.Getenv("LANCEDB_GO_SOURCE_URL"))
+	if sourceURL == "" {
+		sourceURL = defaultGoSourceURL
+	}
+
+	fmt.Fprintln(os.Stderr, "==> falling back to source build")
+	if err := runCommand(
+		workDir,
+		nil,
+		"git",
+		"clone",
+		"--depth", "1",
+		"--branch", version,
+		sourceURL,
+		sourceDir,
+	); err != nil {
+		return "", fmt.Errorf("clone lancedb-go source: %w", err)
+	}
+
+	rustSourceURL := strings.TrimSpace(os.Getenv("LANCEDB_RUST_SOURCE_URL"))
+	if rustSourceURL != "" && rustSourceURL != defaultRustSourceURL {
+		if err := rewriteRustSourceURL(filepath.Join(sourceDir, "rust", "Cargo.toml"), rustSourceURL); err != nil {
+			return "", err
+		}
+	}
+
+	buildEnv := []string{"CARGO_NET_GIT_FETCH_WITH_CLI=true"}
+	if err := runCommand(sourceDir, buildEnv, "./scripts/build-native.sh", platform, arch); err != nil {
+		return "", fmt.Errorf("build native library from source: %w", err)
+	}
+
+	builtHeader := filepath.Join(sourceDir, "include", headerName)
+	if err := copyFile(builtHeader, headerTarget); err != nil {
+		return "", fmt.Errorf("copy header: %w", err)
+	}
+
+	libName := preferredLibName(platform, static)
+	builtLib := filepath.Join(sourceDir, "lib", platform+"_"+arch, libName)
+	if _, err := os.Stat(builtLib); err != nil && !static {
+		libName = "liblancedb_go.a"
+		builtLib = filepath.Join(sourceDir, "lib", platform+"_"+arch, libName)
+	}
+
+	libTarget := filepath.Join(libDir, libName)
+	if err := copyFile(builtLib, libTarget); err != nil {
+		return "", fmt.Errorf("copy library: %w", err)
+	}
+	return libTarget, nil
+}
+
+func preferredLibName(platform string, static bool) string {
+	if static {
+		return "liblancedb_go.a"
+	}
+	switch platform {
+	case "darwin":
+		return "liblancedb_go.dylib"
+	case "linux":
+		return "liblancedb_go.so"
+	default:
+		return "liblancedb_go.a"
+	}
+}
+
+func rewriteRustSourceURL(cargoTomlPath, rustSourceURL string) error {
+	data, err := os.ReadFile(cargoTomlPath)
+	if err != nil {
+		return fmt.Errorf("read rust/Cargo.toml: %w", err)
+	}
+	updated := strings.ReplaceAll(string(data), defaultRustSourceURL, rustSourceURL)
+	if updated == string(data) {
+		return fmt.Errorf("rust source url placeholder not found in %s", cargoTomlPath)
+	}
+	if err := os.WriteFile(cargoTomlPath, []byte(updated), 0o644); err != nil {
+		return fmt.Errorf("write rust/Cargo.toml: %w", err)
+	}
+	fmt.Fprintf(os.Stderr, "==> using rust source mirror: %s\n", rustSourceURL)
+	return nil
+}
+
+func runCommand(dir string, env []string, name string, args ...string) error {
+	cmd := exec.Command(name, args...)
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Env = append(os.Environ(), env...)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("%s %s: %w", name, strings.Join(args, " "), err)
+	}
+	return nil
+}
+
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	tmp := dst + ".tmp"
+	out, err := os.Create(tmp)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		out.Close()
+		os.Remove(tmp)
+		return err
+	}
+	if err := out.Close(); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	return os.Rename(tmp, dst)
 }
 
 func extractFromArchive(archivePath, member, target string, force bool) error {
