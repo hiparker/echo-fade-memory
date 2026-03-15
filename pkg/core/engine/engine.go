@@ -50,6 +50,7 @@ type RememberRequest struct {
 type RecallEvidence struct {
 	Backend string  `json:"backend"`
 	Score   float64 `json:"score"`
+	Rank    int     `json:"rank"`
 }
 
 // New creates a new Engine.
@@ -80,6 +81,21 @@ func New(cfg *config.Config) (*Engine, error) {
 		mem.Close()
 		return nil, err
 	}
+	return NewWithDeps(cfg, mem, vector, bleve, embed), nil
+}
+
+// NewWithDeps creates an Engine from explicit dependencies.
+// This is useful for tests and alternative runtimes.
+func NewWithDeps(
+	cfg *config.Config,
+	mem memstore.MemoryStore,
+	vector store.VectorStore,
+	bleve *store.BleveStore,
+	embed embedding.Provider,
+) *Engine {
+	if cfg == nil {
+		cfg = config.Default()
+	}
 	decayParams := decay.ParamsFromFull(decay.ParamsFromFullArgs{
 		Tau:         cfg.Decay.Tau,
 		Alpha:       cfg.Decay.Alpha,
@@ -88,7 +104,6 @@ func New(cfg *config.Config) (*Engine, error) {
 		AccessBoost: cfg.Decay.AccessBoost,
 		HorizonDays: cfg.Decay.HorizonDays,
 	})
-
 	decayCacheTTL := time.Duration(cfg.Decay.CacheTTLMin) * time.Minute
 	return &Engine{
 		cfg:           cfg,
@@ -98,7 +113,7 @@ func New(cfg *config.Config) (*Engine, error) {
 		embed:         embed,
 		decay:         decayParams,
 		decayCacheTTL: decayCacheTTL,
-	}, nil
+	}
 }
 
 // Store adds a new memory.
@@ -190,17 +205,69 @@ type RecallResult struct {
 	SourceRefs     []model.SourceRef `json:"source_refs,omitempty"`
 	WhyRecalled    []string          `json:"why_recalled,omitempty"`
 	Evidence       []RecallEvidence  `json:"evidence,omitempty"`
+	ConflictGroup  string            `json:"conflict_group,omitempty"`
+	Version        int               `json:"version,omitempty"`
+	LifecycleState string            `json:"lifecycle_state,omitempty"`
+	ConflictWarn   bool              `json:"conflict_warning,omitempty"`
+	Suppressed     []int             `json:"suppressed_versions,omitempty"`
+}
+
+// RecallTraceCandidate captures accepted or filtered recall candidates.
+type RecallTraceCandidate struct {
+	MemoryID        string            `json:"memory_id"`
+	Summary         string            `json:"summary,omitempty"`
+	ConflictGroup   string            `json:"conflict_group,omitempty"`
+	Version         int               `json:"version,omitempty"`
+	LifecycleState  string            `json:"lifecycle_state,omitempty"`
+	Strength        float64           `json:"strength"`
+	Freshness       float64           `json:"freshness"`
+	NeedsGrounding  bool              `json:"needs_grounding"`
+	Source          string            `json:"source,omitempty"`
+	SourceRefs      []model.SourceRef `json:"source_refs,omitempty"`
+	VectorScore     float64           `json:"vector_score,omitempty"`
+	VectorRank      int               `json:"vector_rank,omitempty"`
+	BM25Score       float64           `json:"bm25_score,omitempty"`
+	BM25Rank        int               `json:"bm25_rank,omitempty"`
+	FusedScore      float64           `json:"fused_score"`
+	Accepted        bool              `json:"accepted"`
+	FilteredReasons []string          `json:"filtered_reasons,omitempty"`
+	LatestVersion   int               `json:"latest_version,omitempty"`
+}
+
+// ExplainResult exposes accepted and filtered candidates for auditability.
+type ExplainResult struct {
+	Query    string                 `json:"query"`
+	Accepted []RecallResult         `json:"accepted"`
+	Filtered []RecallTraceCandidate `json:"filtered"`
 }
 
 // Recall performs hybrid recall (vector + BM25, RRF fusion).
 func (e *Engine) Recall(ctx context.Context, query string, k int, minClarity float64) ([]RecallResult, error) {
+	results, _, err := e.recallWithTrace(ctx, query, k, minClarity, true)
+	return results, err
+}
+
+// Explain returns accepted and filtered recall candidates without reinforcement side effects.
+func (e *Engine) Explain(ctx context.Context, query string, k int, minClarity float64) (*ExplainResult, error) {
+	accepted, filtered, err := e.recallWithTrace(ctx, query, k, minClarity, false)
+	if err != nil {
+		return nil, err
+	}
+	return &ExplainResult{
+		Query:    query,
+		Accepted: accepted,
+		Filtered: filtered,
+	}, nil
+}
+
+func (e *Engine) recallWithTrace(ctx context.Context, query string, k int, minClarity float64, reinforce bool) ([]RecallResult, []RecallTraceCandidate, error) {
 	if e.decayCacheTTL == 0 || time.Since(e.lastDecayAt) > e.decayCacheTTL {
 		_ = e.DecayAll(ctx)
 		e.lastDecayAt = time.Now()
 	}
 	vec, err := e.embed.Embed(ctx, query)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var vecIDs []string
@@ -225,61 +292,108 @@ func (e *Engine) Recall(ctx context.Context, query string, k int, minClarity flo
 		return nil
 	})
 	if err := g.Wait(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	rrfK := 60.0
-	combined := rrfFusion(vecIDs, vecScores, bm25IDs, bm25Scores, rrfK)
+	combined := rrfFusionDetailed(vecIDs, vecScores, bm25IDs, bm25Scores, rrfK)
 	vecScoreMap := make(map[string]float64, len(vecIDs))
+	vecRankMap := make(map[string]int, len(vecIDs))
 	for i, id := range vecIDs {
 		vecScoreMap[id] = float64(vecScores[i])
+		vecRankMap[id] = i + 1
 	}
 	bm25ScoreMap := make(map[string]float64, len(bm25IDs))
+	bm25RankMap := make(map[string]int, len(bm25IDs))
 	for i, id := range bm25IDs {
 		bm25ScoreMap[id] = bm25Scores[i]
+		bm25RankMap[id] = i + 1
 	}
 
+	memories, err := e.mem.ListAll()
+	if err != nil {
+		return nil, nil, err
+	}
+	conflicts := buildConflictIndex(memories)
+
 	var results []RecallResult
-	for i, id := range combined {
-		if i >= k {
-			break
-		}
-		m, err := e.mem.Get(id)
+	var filtered []RecallTraceCandidate
+	now := time.Now()
+	for _, item := range combined {
+		m, err := e.mem.Get(item.id)
 		if err != nil || m == nil {
-			continue
-		}
-		if m.Clarity < minClarity {
+			filtered = append(filtered, RecallTraceCandidate{
+				MemoryID:        item.id,
+				FusedScore:      item.score,
+				Accepted:        false,
+				FilteredReasons: []string{"load_failed"},
+			})
 			continue
 		}
 		if m.LifecycleState == "" {
 			m.LifecycleState = model.LifecycleStateFromClarity(m.Clarity)
 		}
-		m.AccessCount++
-		_ = e.mem.UpdateAccess(id, m.AccessCount)
-		score := 1.0 / float64(i+1+60)
-		evidence := recallEvidence(id, vecScoreMap, bm25ScoreMap)
+		trace := buildTraceCandidate(m, item, vecScoreMap, vecRankMap, bm25ScoreMap, bm25RankMap, conflicts, now)
+		filterReasons := make([]string, 0, 4)
+		if m.Clarity < minClarity {
+			filterReasons = append(filterReasons, "below_min_clarity")
+		}
+		if conflict, ok := conflicts[m.ConflictGroup]; ok && conflict.count > 1 && m.Version < conflict.latestVersion {
+			filterReasons = append(filterReasons, "superseded_by_newer_version")
+		}
+		if len(results) >= k {
+			filterReasons = append(filterReasons, "rank_cutoff")
+		}
+		if len(filterReasons) > 0 {
+			trace.Accepted = false
+			trace.FilteredReasons = filterReasons
+			filtered = append(filtered, trace)
+			continue
+		}
+		if reinforce {
+			m.AccessCount++
+			_ = e.mem.UpdateAccess(m.ID, m.AccessCount)
+		}
+		evidence := recallEvidence(m.ID, vecScoreMap, vecRankMap, bm25ScoreMap, bm25RankMap)
+		conflict := conflicts[m.ConflictGroup]
 		results = append(results, RecallResult{
 			Memory:         m,
 			MemoryID:       m.ID,
 			Summary:        recallSummary(m),
-			Score:          score,
+			Score:          item.score,
 			Strength:       m.Clarity,
-			Freshness:      freshnessScore(m, time.Now()),
+			Freshness:      freshnessScore(m, now),
 			Fuzziness:      m.Fuzziness(),
 			DecayStage:     m.ResidualForm,
-			LastAccessedAt: time.Now(),
-			NeedsGrounding: needsGrounding(m, evidence),
+			LastAccessedAt: now,
+			NeedsGrounding: needsGrounding(m, evidence, conflict),
 			Source:         m.PrimarySource(),
 			SourceRefs:     m.SourceRefs,
-			WhyRecalled:    whyRecalled(m, evidence),
+			WhyRecalled:    whyRecalled(m, evidence, conflict),
 			Evidence:       evidence,
+			ConflictGroup:  m.ConflictGroup,
+			Version:        m.Version,
+			LifecycleState: m.LifecycleState,
+			ConflictWarn:   conflict.count > 1,
+			Suppressed:     suppressedVersions(m.Version, conflict.versions),
 		})
 	}
 
-	return results, nil
+	return results, filtered, nil
 }
 
-func rrfFusion(vecIDs []string, vecScores []float32, bm25IDs []string, bm25Scores []float64, k float64) []string {
+type rankedResult struct {
+	id    string
+	score float64
+}
+
+type conflictInfo struct {
+	latestVersion int
+	count         int
+	versions      []int
+}
+
+func rrfFusionDetailed(vecIDs []string, vecScores []float32, bm25IDs []string, bm25Scores []float64, k float64) []rankedResult {
 	scores := make(map[string]float64)
 	for i, id := range vecIDs {
 		scores[id] += 1.0 / (k + float64(i+1))
@@ -288,20 +402,12 @@ func rrfFusion(vecIDs []string, vecScores []float32, bm25IDs []string, bm25Score
 		scores[id] += 1.0 / (k + float64(i+1))
 	}
 
-	type item struct {
-		id    string
-		score float64
-	}
-	items := make([]item, 0, len(scores))
+	items := make([]rankedResult, 0, len(scores))
 	for id, s := range scores {
-		items = append(items, item{id, s})
+		items = append(items, rankedResult{id: id, score: s})
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].score > items[j].score })
-	out := make([]string, len(items))
-	for i, it := range items {
-		out[i] = it.id
-	}
-	return out
+	return items
 }
 
 // Reinforce strengthens a memory by updating its access stats.
@@ -343,6 +449,9 @@ type GroundResult struct {
 	Source          string            `json:"source,omitempty"`
 	SourceRefs      []model.SourceRef `json:"source_refs,omitempty"`
 	GroundingStatus string            `json:"grounding_status,omitempty"`
+	ConflictGroup   string            `json:"conflict_group,omitempty"`
+	Version         int               `json:"version,omitempty"`
+	LifecycleState  string            `json:"lifecycle_state,omitempty"`
 }
 
 // Ground loads the original memory and its provenance.
@@ -361,7 +470,49 @@ func (e *Engine) Ground(ctx context.Context, id string) (*GroundResult, error) {
 		Source:          m.PrimarySource(),
 		SourceRefs:      m.SourceRefs,
 		GroundingStatus: m.GroundingStatus,
+		ConflictGroup:   m.ConflictGroup,
+		Version:         m.Version,
+		LifecycleState:  m.LifecycleState,
 	}, nil
+}
+
+// Get returns a fully described memory by id.
+func (e *Engine) Get(ctx context.Context, id string) (*GroundResult, error) {
+	return e.Ground(ctx, id)
+}
+
+// Versions returns all versions in the memory's conflict group.
+func (e *Engine) Versions(ctx context.Context, id string) ([]GroundResult, error) {
+	current, err := e.mem.Get(id)
+	if err != nil || current == nil {
+		return nil, err
+	}
+	memories, err := e.mem.ListAll()
+	if err != nil {
+		return nil, err
+	}
+	results := make([]GroundResult, 0)
+	for _, m := range memories {
+		if m.ConflictGroup != current.ConflictGroup {
+			continue
+		}
+		results = append(results, GroundResult{
+			MemoryID:        m.ID,
+			Summary:         recallSummary(m),
+			Content:         m.Content,
+			ResidualContent: m.ResidualContent,
+			Strength:        m.Clarity,
+			DecayStage:      m.ResidualForm,
+			Source:          m.PrimarySource(),
+			SourceRefs:      m.SourceRefs,
+			GroundingStatus: m.GroundingStatus,
+			ConflictGroup:   m.ConflictGroup,
+			Version:         m.Version,
+			LifecycleState:  m.LifecycleState,
+		})
+	}
+	sort.Slice(results, func(i, j int) bool { return results[i].Version > results[j].Version })
+	return results, nil
 }
 
 // DecayAll recomputes clarity and residual for all memories.
@@ -369,6 +520,9 @@ func (e *Engine) DecayAll(ctx context.Context) error {
 	memories, err := e.mem.ListAll()
 	if err != nil {
 		return err
+	}
+	if len(memories) == 0 {
+		return nil
 	}
 	updates := make([]memstore.DecayUpdate, len(memories))
 	workers := runtime.NumCPU()
@@ -457,19 +611,22 @@ func freshnessScore(m *model.Memory, now time.Time) float64 {
 	return score
 }
 
-func recallEvidence(id string, vecScoreMap, bm25ScoreMap map[string]float64) []RecallEvidence {
+func recallEvidence(id string, vecScoreMap map[string]float64, vecRankMap map[string]int, bm25ScoreMap map[string]float64, bm25RankMap map[string]int) []RecallEvidence {
 	evidence := make([]RecallEvidence, 0, 2)
 	if score, ok := vecScoreMap[id]; ok {
-		evidence = append(evidence, RecallEvidence{Backend: "vector", Score: score})
+		evidence = append(evidence, RecallEvidence{Backend: "vector", Score: score, Rank: vecRankMap[id]})
 	}
 	if score, ok := bm25ScoreMap[id]; ok {
-		evidence = append(evidence, RecallEvidence{Backend: "bm25", Score: score})
+		evidence = append(evidence, RecallEvidence{Backend: "bm25", Score: score, Rank: bm25RankMap[id]})
 	}
 	return evidence
 }
 
-func needsGrounding(m *model.Memory, evidence []RecallEvidence) bool {
+func needsGrounding(m *model.Memory, evidence []RecallEvidence, conflict conflictInfo) bool {
 	if len(m.SourceRefs) == 0 {
+		return true
+	}
+	if conflict.count > 1 {
 		return true
 	}
 	if m.Clarity < 0.5 {
@@ -481,7 +638,7 @@ func needsGrounding(m *model.Memory, evidence []RecallEvidence) bool {
 	return len(evidence) < 2
 }
 
-func whyRecalled(m *model.Memory, evidence []RecallEvidence) []string {
+func whyRecalled(m *model.Memory, evidence []RecallEvidence, conflict conflictInfo) []string {
 	reasons := make([]string, 0, 4)
 	for _, ev := range evidence {
 		switch ev.Backend {
@@ -496,6 +653,9 @@ func whyRecalled(m *model.Memory, evidence []RecallEvidence) []string {
 	}
 	if m.Importance >= 0.75 {
 		reasons = append(reasons, "high_importance")
+	}
+	if conflict.count > 1 {
+		reasons = append(reasons, "latest_in_conflict_group")
 	}
 	if len(reasons) == 0 {
 		reasons = append(reasons, "rrf_ranked_match")
@@ -539,4 +699,70 @@ func (e *Engine) nextVersion(conflictGroup string) (int, error) {
 		}
 	}
 	return maxVersion + 1, nil
+}
+
+func buildConflictIndex(memories []*model.Memory) map[string]conflictInfo {
+	index := make(map[string]conflictInfo)
+	for _, m := range memories {
+		if m == nil || m.ConflictGroup == "" {
+			continue
+		}
+		info := index[m.ConflictGroup]
+		info.count++
+		if m.Version > info.latestVersion {
+			info.latestVersion = m.Version
+		}
+		info.versions = append(info.versions, m.Version)
+		index[m.ConflictGroup] = info
+	}
+	for key, info := range index {
+		sort.Ints(info.versions)
+		index[key] = info
+	}
+	return index
+}
+
+func suppressedVersions(current int, versions []int) []int {
+	if len(versions) <= 1 {
+		return nil
+	}
+	out := make([]int, 0, len(versions)-1)
+	for _, v := range versions {
+		if v != current {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+func buildTraceCandidate(
+	m *model.Memory,
+	item rankedResult,
+	vecScoreMap map[string]float64,
+	vecRankMap map[string]int,
+	bm25ScoreMap map[string]float64,
+	bm25RankMap map[string]int,
+	conflicts map[string]conflictInfo,
+	now time.Time,
+) RecallTraceCandidate {
+	conflict := conflicts[m.ConflictGroup]
+	return RecallTraceCandidate{
+		MemoryID:       m.ID,
+		Summary:        recallSummary(m),
+		ConflictGroup:  m.ConflictGroup,
+		Version:        m.Version,
+		LifecycleState: m.LifecycleState,
+		Strength:       m.Clarity,
+		Freshness:      freshnessScore(m, now),
+		NeedsGrounding: needsGrounding(m, recallEvidence(m.ID, vecScoreMap, vecRankMap, bm25ScoreMap, bm25RankMap), conflict),
+		Source:         m.PrimarySource(),
+		SourceRefs:     m.SourceRefs,
+		VectorScore:    vecScoreMap[m.ID],
+		VectorRank:     vecRankMap[m.ID],
+		BM25Score:      bm25ScoreMap[m.ID],
+		BM25Rank:       bm25RankMap[m.ID],
+		FusedScore:     item.score,
+		Accepted:       true,
+		LatestVersion:  conflict.latestVersion,
+	}
 }
