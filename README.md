@@ -18,7 +18,7 @@ An **AI memory middleware** built for forgetting. It helps agents remember, deca
 ## Overview
 
 - **Forgetting as a feature**: this is not just a memory store, but a memory lifecycle engine.
-- **Explainable recall**: recall returns `score`, `strength`, `freshness`, `fuzziness`, `decay_stage`, `source`, `why_recalled`, and `needs_grounding`.
+- **Explainable recall**: recall returns `score`, `strength`, `freshness`, `fuzziness`, `decay_stage`, `source_refs`, `why_recalled`, and `needs_grounding`.
 - **Multi-form memory**: one memory can carry raw content, summary, embedding, residual content, lifecycle state, and source references.
 - **Pluggable runtime**: use it from CLI, HTTP API, and later MCP / SDK integrations.
 
@@ -36,6 +36,8 @@ An **AI memory middleware** built for forgetting. It helps agents remember, deca
 ## Quick Start
 
 **Prerequisites**: [Go 1.26+](https://go.dev/dl/), [Ollama](https://ollama.ai/) with `nomic-embed-text` model.
+
+Canonical Go module path: `github.com/hiparker/echo-fade-memory`.
 
 The default vector backend is `local`, so a plain `make build` / `make test` flow stays dependency-light.
 By default, runtime assets now live under `~/.echo-fade-memory`, with data isolated per workspace.
@@ -61,11 +63,12 @@ make build
 
 # HTTP API
 ./echo-fade-memory serve
-# POST /remember {"content":"...", "memory_type":"project", "source_refs":[...]}
-# GET /recall?q=query
-# POST /reinforce {"id":"..."}
-# GET /memories/:id/ground
-# POST /explain {"query":"..."}
+# POST   /v1/memories {"content":"...", "memory_type":"project", "source_refs":[...]}
+# GET    /v1/memories?q=query
+# POST   /v1/memories/<id>/reinforce
+# GET    /v1/memories/<id>/ground
+# POST   /v1/memories/explain {"query":"..."}
+# POST   /v1/memories/decay
 ```
 
 **Docker**:
@@ -94,7 +97,7 @@ Copy `config.example.json` to `config.json` and customize:
 | embedding | type, url, model, dimensions, api_key, base_url | `type`: ollama, openai, gemini; `url` for ollama; `api_key` for openai/gemini |
 | decay | tau, alpha, epsilon | strength = 1/(1+(t/τ)^α) × reinforce; tau=halflife, alpha=shape |
 | vector_store | type, path, milvus_host, milvus_port, milvus_db | `local` (default), `lancedb`, `milvus` |
-| storage | type, path | `sqlite` (default), `postgres` |
+| storage | type, path | `sqlite` (default), `postgres`, `mysql` |
 
 Env vars: `EMBEDDING_TYPE`, `EMBEDDING_URL`, `EMBEDDING_MODEL`, `EMBEDDING_API_KEY`, `ECHO_FADE_MEMORY_HOME`, `ECHO_FADE_MEMORY_WORKSPACE`, etc.
 
@@ -145,6 +148,9 @@ go run ./cmd/setup-lancedb
 # Optional: choose a different runtime home
 ECHO_FADE_MEMORY_HOME="$HOME/.echo-fade-memory" go run ./cmd/setup-lancedb
 
+# Optional: if GitHub release assets are unavailable, source fallback can use a mirror
+LANCEDB_RUST_SOURCE_URL="https://gitee.com/mirrors/lancedb.git" go run ./cmd/setup-lancedb --static
+
 # Build with the real LanceDB adapter enabled
 make build-lancedb
 
@@ -153,6 +159,8 @@ make test-lancedb
 ```
 
 If `vector_store.type` is set to `lancedb` without building with `-tags lancedb`, the process returns a clear startup error instead of silently switching backends.
+
+When release assets cannot be downloaded, `cmd/setup-lancedb` now tries a source build fallback if `git`, `cargo`, `rustup`, and `cbindgen` are available locally. `LANCEDB_GO_SOURCE_URL` can override the `lancedb-go` source repository, and `LANCEDB_RUST_SOURCE_URL` can point the Rust dependency at a faster mirror such as Gitee.
 
 ---
 
@@ -170,16 +178,17 @@ Each memory can include:
 
 ## API Snapshot
 
-Current HTTP endpoints:
+Phase 1 exposes a single public HTTP contract:
 
-- `POST /remember`
-- `GET /recall`
-- `POST /reinforce`
-- `POST /forget`
-- `POST /explain`
-- `GET /memories/:id/ground`
-- `GET /memories/:id/reconstruct`
-
-Stable aliases are also available under `/v1`, such as `/v1/remember`, `/v1/recall`, and `/v1/memories/:id/versions`.
-
-Legacy compatibility endpoints are still available under `/memories`.
+- `POST /v1/memories`
+- `GET /v1/memories?q=...`
+- `POST /v1/memories/explain`
+- `POST /v1/memories/decay`
+- `GET /v1/memories/:id`
+- `DELETE /v1/memories/:id`
+- `POST /v1/memories/:id/reinforce`
+- `GET /v1/memories/:id/ground`
+- `GET /v1/memories/:id/reconstruct`
+- `GET /v1/memories/:id/versions`
+- `GET /v1/healthz`
+- `GET /v1/readyz`

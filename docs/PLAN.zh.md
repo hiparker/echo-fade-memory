@@ -324,8 +324,8 @@ recall(query) =
 
 | 方式             | 适用场景                                                              |
 | -------------- | ----------------------------------------------------------------- |
-| **CLI**        | Skill 内 `exec` 调用：`echo-fade-memory store "..."`、`recall "query"` |
-| **HTTP API**   | REST：`POST /memories`、`GET /memories?q=...`，skill 或 agent 远程调用    |
+| **CLI**        | Skill 内 `exec` 调用：`echo-fade-memory remember "..."`、`recall "query"` |
+| **HTTP API**   | REST：`POST /v1/memories`、`GET /v1/memories?q=...`，skill 或 agent 远程调用 |
 | **MCP Server** | 可选，作为 Cursor/IDE 的 MCP 工具，AI 可直接 invoke                           |
 | **Skill 模板**   | 提供 `echo-fade-memory.skill` 示例，描述何时触发、如何调用                        |
 

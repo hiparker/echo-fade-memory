@@ -316,8 +316,8 @@ Backup: `tar -czvf backup.tar.gz ~/.echo-fade-memory/workspaces/<workspace-id>/d
 
 | Method        | Use case                                                          |
 | ------------- | ----------------------------------------------------------------- |
-| **CLI**       | Skill `exec`: `echo-fade-memory store "..."`, `recall "query"`   |
-| **HTTP API**  | REST: `POST /memories`, `GET /memories?q=...`; skill/agent remote |
+| **CLI**       | Skill `exec`: `echo-fade-memory remember "..."`, `recall "query"` |
+| **HTTP API**  | REST: `POST /v1/memories`, `GET /v1/memories?q=...`; skill/agent remote |
 | **MCP Server**| Optional; Cursor/IDE MCP tool; AI can invoke directly            |
 | **Skill template** | Provide `echo-fade-memory.skill` example, when to trigger, how to call |
 

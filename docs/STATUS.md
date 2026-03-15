@@ -4,7 +4,7 @@
 
 | Phase | 规划内容 | 状态 | 说明 |
 |-------|----------|------|------|
-| Phase 1 | 核心引擎 | 约 90% | 记忆生命周期、可解释召回、来源回源与基础 API 已落地 |
+| Phase 1 | 核心引擎 | 已完成 | 单一 `/v1/memories` 契约与正式 schema 已落地；默认测试矩阵已通过，LanceDB 不在本轮重复复测 |
 | Phase 2 | 知识图谱 + LLM 集成 | 约 20% | HTTP API 已有，KG 未做 |
 | Phase 3 | 人格涌现 | 0% | 未开始 |
 
@@ -59,7 +59,7 @@
 | 知识图谱 | ❌ | 未实现 |
 | RRF 融合 | ✅ | 向量 + BM25 融合 |
 | clarity 过滤 | ✅ | minClarity 参数 |
-| Explainable Recall | ✅ | 返回 score、strength、freshness、fuzziness、source、why_recalled、needs_grounding |
+| Explainable Recall | ✅ | 返回 score、strength、freshness、fuzziness、source_refs、why_recalled、needs_grounding |
 | 回源 | ✅ | `ground(memory_id)` 已支持来源回查元信息 |
 | 联想召回 | ⚠️ | 无「clarity 极低仅向量」逻辑，双路统一召回 |
 
@@ -87,7 +87,7 @@
 | Docker | ✅ | Dockerfile + docker-compose |
 | 存储可移植 | ✅ | DATA_PATH |
 | CLI | ✅ | remember, recall, reinforce, ground, forget, decay |
-| HTTP API | ✅ | `/remember` `/recall` `/reinforce` `/forget` `/explain` + legacy `/memories` |
+| HTTP API | ✅ | 唯一公开契约为 `/v1/memories` 资源式 API |
 | MCP Server | ❌ | 未实现 |
 | Skill 模板 | ❌ | 未提供 |
 | 跨平台 | ✅ | Makefile build-all |
