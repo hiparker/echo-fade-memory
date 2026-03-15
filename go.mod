@@ -1,4 +1,4 @@
-module github.com/echo-fade-memory/echo-fade-memory
+module github.com/hiparker/echo-fade-memory
 
 go 1.26
 

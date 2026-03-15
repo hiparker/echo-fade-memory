@@ -1,4 +1,4 @@
-.PHONY: build setup-lancedb build-lancedb run store recall decay test test-lancedb print-runtime-paths clean docker-build
+.PHONY: build setup-lancedb setup-lancedb-static build-lancedb run remember recall decay test test-lancedb print-runtime-paths clean docker-build
 
 BINARY := echo-fade-memory
 RUNTIME_HOME := $(if $(ECHO_FADE_MEMORY_HOME),$(ECHO_FADE_MEMORY_HOME),$(HOME)/.echo-fade-memory)
@@ -58,14 +58,17 @@ build:
 setup-lancedb:
 	go run ./cmd/setup-lancedb
 
-build-lancedb: setup-lancedb
+setup-lancedb-static:
+	go run ./cmd/setup-lancedb --static
+
+build-lancedb: setup-lancedb-static
 	CGO_CFLAGS="$(LANCEDB_CGO_CFLAGS)" CGO_LDFLAGS="$(LANCEDB_CGO_LDFLAGS)" go build -tags lancedb -o $(BINARY) ./cmd/echo-fade-memory
 
 run: build
 	./$(BINARY) $(ARGS)
 
-store: build
-	./$(BINARY) store "$(CONTENT)"
+remember: build
+	./$(BINARY) remember "$(CONTENT)"
 
 recall: build
 	./$(BINARY) recall "$(QUERY)"
@@ -76,7 +79,7 @@ decay: build
 test:
 	go test ./...
 
-test-lancedb: setup-lancedb
+test-lancedb: setup-lancedb-static
 	CGO_CFLAGS="$(LANCEDB_CGO_CFLAGS)" CGO_LDFLAGS="$(LANCEDB_CGO_LDFLAGS)" go test -tags lancedb ./...
 
 print-runtime-paths:

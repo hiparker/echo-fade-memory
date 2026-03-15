@@ -3,14 +3,17 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/config"
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/core/engine"
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/portal/api"
+	"github.com/hiparker/echo-fade-memory/pkg/config"
+	"github.com/hiparker/echo-fade-memory/pkg/core/engine"
+	"github.com/hiparker/echo-fade-memory/pkg/core/model"
+	"github.com/hiparker/echo-fade-memory/pkg/portal/api"
 )
 
 func main() {
@@ -38,8 +41,6 @@ func main() {
 	ctx := context.Background()
 
 	switch os.Args[1] {
-	case "store":
-		fallthrough
 	case "remember":
 		if len(os.Args) < 3 {
 			fmt.Fprintln(os.Stderr, "usage: echo-fade-memory remember <content>")
@@ -96,7 +97,12 @@ func main() {
 			fmt.Fprintln(os.Stderr, "memory not found")
 			os.Exit(1)
 		}
-		fmt.Printf("memory: %s\nsummary: %s\nsource: %s\n", res.MemoryID, res.Summary, res.Source)
+		fmt.Printf("memory: %s\nsummary: %s\n", res.MemoryID, res.Summary)
+		if len(res.SourceRefs) == 0 {
+			fmt.Println("sources: none")
+			break
+		}
+		fmt.Printf("sources: %d\nfirst_source: %s\n", len(res.SourceRefs), formatSourceRef(res.SourceRefs[0]))
 	case "forget":
 		if len(os.Args) < 3 {
 			fmt.Fprintln(os.Stderr, "usage: echo-fade-memory forget <memory_id>")
@@ -123,7 +129,15 @@ func main() {
 		srv := api.NewServer(eng)
 		addr := fmt.Sprintf(":%d", port)
 		fmt.Printf("listening on %s\n", addr)
-		if err := http.ListenAndServe(addr, srv); err != nil {
+		server := &http.Server{
+			Addr:              addr,
+			Handler:           srv,
+			ReadHeaderTimeout: 5 * time.Second,
+			ReadTimeout:       15 * time.Second,
+			WriteTimeout:      30 * time.Second,
+			IdleTimeout:       60 * time.Second,
+		}
+		if err := server.ListenAndServe(); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			os.Exit(1)
 		}
@@ -134,7 +148,11 @@ func main() {
 }
 
 func printUsage() {
-	fmt.Print(`echo-fade-memory - a storage system that forgets
+	writeUsage(os.Stdout)
+}
+
+func writeUsage(w io.Writer) {
+	fmt.Fprint(w, `echo-fade-memory - a storage system that forgets
 
 Usage:
   echo-fade-memory remember <content> Store a memory
@@ -152,4 +170,11 @@ Environment:
   EMBEDDING_URL  Embedding API URL for ollama (default: http://localhost:11434)
   CONFIG_PATH Config file (default: config.json)
 `)
+}
+
+func formatSourceRef(ref model.SourceRef) string {
+	if ref.Kind == "" {
+		return ref.Ref
+	}
+	return ref.Kind + ":" + ref.Ref
 }
