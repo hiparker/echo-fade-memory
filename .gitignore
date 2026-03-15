@@ -1,5 +1,6 @@
 /echo-fade-memory
 /echo-fade-memory-*
+/setup-lancedb
 *.exe
 /data/
 *.bleve
