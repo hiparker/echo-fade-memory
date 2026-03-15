@@ -5,10 +5,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/config"
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/port/embedding/gemini"
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/port/embedding/ollama"
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/port/embedding/openai"
+	"github.com/hiparker/echo-fade-memory/pkg/config"
+	"github.com/hiparker/echo-fade-memory/pkg/port/embedding/gemini"
+	"github.com/hiparker/echo-fade-memory/pkg/port/embedding/ollama"
+	"github.com/hiparker/echo-fade-memory/pkg/port/embedding/openai"
 )
 
 // NewProvider creates an embedding provider from config.

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/core/engine"
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/core/model"
+	"github.com/hiparker/echo-fade-memory/pkg/core/engine"
+	"github.com/hiparker/echo-fade-memory/pkg/core/model"
 )
 
 const (
@@ -26,7 +26,7 @@ func NewServer(eng *engine.Engine) *Server {
 	return &Server{engine: eng}
 }
 
-// StoreRequest is the request body for store.
+// StoreRequest is the request body for memory creation.
 type StoreRequest struct {
 	Content       string            `json:"content"`
 	Summary       string            `json:"summary,omitempty"`
@@ -36,7 +36,7 @@ type StoreRequest struct {
 	SourceRefs    []model.SourceRef `json:"source_refs,omitempty"`
 }
 
-// StoreResponse is the response for store.
+// StoreResponse is the response for memory creation or reinforcement.
 type StoreResponse struct {
 	ID             string `json:"id"`
 	Summary        string `json:"summary,omitempty"`
@@ -59,7 +59,6 @@ type RecallItem struct {
 	DecayStage      string                  `json:"decay_stage"`
 	LastAccessedAt  string                  `json:"last_accessed_at"`
 	NeedsGrounding  bool                    `json:"needs_grounding"`
-	Source          string                  `json:"source,omitempty"`
 	SourceRefs      []model.SourceRef       `json:"source_refs,omitempty"`
 	WhyRecalled     []string                `json:"why_recalled,omitempty"`
 	Evidence        []engine.RecallEvidence `json:"evidence,omitempty"`
@@ -75,14 +74,6 @@ type RecallResponse struct {
 	Results []RecallItem `json:"results"`
 }
 
-type reinforceRequest struct {
-	ID string `json:"id"`
-}
-
-type forgetRequest struct {
-	ID string `json:"id"`
-}
-
 type explainRequest struct {
 	Query      string  `json:"query"`
 	K          int     `json:"k,omitempty"`
@@ -92,16 +83,15 @@ type explainRequest struct {
 // ServeHTTP implements http.Handler.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	path := normalizePath(r.URL.Path)
 
-	switch path {
-	case "/healthz", "/readyz":
+	switch r.URL.Path {
+	case "/v1/healthz", "/v1/readyz":
 		if r.Method != http.MethodGet {
 			writeJSONError(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
-	case "/memories", "/memories/":
+	case "/v1/memories", "/v1/memories/":
 		switch r.Method {
 		case http.MethodPost:
 			s.handleStore(w, r)
@@ -110,63 +100,25 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		default:
 			writeJSONError(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
-	case "/remember":
-		if r.Method != http.MethodPost {
-			writeJSONError(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		s.handleStore(w, r)
-	case "/recall":
-		if r.Method != http.MethodGet {
-			writeJSONError(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		s.handleRecall(w, r)
-	case "/reinforce":
-		if r.Method != http.MethodPost {
-			writeJSONError(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		s.handleReinforce(w, r)
-	case "/forget":
-		if r.Method != http.MethodPost {
-			writeJSONError(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		s.handleForget(w, r)
-	case "/decay":
-		if r.Method != http.MethodPost {
-			writeJSONError(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		if err := s.engine.DecayAll(r.Context()); err != nil {
-			writeJSONError(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		_ = json.NewEncoder(w).Encode(map[string]string{"status": "decayed"})
-	case "/explain":
+	case "/v1/memories/explain":
 		if r.Method != http.MethodPost {
 			writeJSONError(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		s.handleExplain(w, r)
+	case "/v1/memories/decay":
+		if r.Method != http.MethodPost {
+			writeJSONError(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		s.handleDecay(w, r)
 	default:
-		if strings.HasPrefix(path, "/memories/") {
-			s.handleMemorySubresource(w, r, path)
+		if strings.HasPrefix(r.URL.Path, "/v1/memories/") {
+			s.handleMemorySubresource(w, r)
 			return
 		}
 		http.NotFound(w, r)
 	}
-}
-
-func normalizePath(path string) string {
-	if strings.HasPrefix(path, "/v1/") {
-		return strings.TrimPrefix(path, "/v1")
-	}
-	if path == "/v1" {
-		return "/"
-	}
-	return path
 }
 
 func writeJSONError(w http.ResponseWriter, msg string, code int) {
@@ -186,6 +138,7 @@ func (s *Server) handleStore(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
 	content := strings.TrimSpace(req.Content)
 	if content == "" {
 		writeJSONError(w, "content required", http.StatusBadRequest)
@@ -207,6 +160,7 @@ func (s *Server) handleStore(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
 	_ = json.NewEncoder(w).Encode(StoreResponse{
 		ID:             m.ID,
 		Summary:        m.Summary,
@@ -222,6 +176,7 @@ func (s *Server) handleRecall(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, "q required", http.StatusBadRequest)
 		return
 	}
+
 	k := 5
 	if v := r.URL.Query().Get("k"); v != "" {
 		if n, _ := strconv.Atoi(v); n > 0 {
@@ -239,108 +194,9 @@ func (s *Server) handleRecall(w http.ResponseWriter, r *http.Request) {
 	}
 
 	items := make([]RecallItem, len(results))
-	for i, r := range results {
+	for i, result := range results {
 		items[i] = RecallItem{
-			ID:              r.Memory.ID,
-			Content:         r.Memory.Content,
-			Summary:         r.Summary,
-			ResidualContent: r.Memory.ResidualContent,
-			Clarity:         r.Memory.Clarity,
-			Score:           r.Score,
-			Strength:        r.Strength,
-			Freshness:       r.Freshness,
-			Fuzziness:       r.Fuzziness,
-			DecayStage:      r.DecayStage,
-			LastAccessedAt:  r.LastAccessedAt.Format(time.RFC3339),
-			NeedsGrounding:  r.NeedsGrounding,
-			Source:          r.Source,
-			SourceRefs:      r.SourceRefs,
-			WhyRecalled:     r.WhyRecalled,
-			Evidence:        r.Evidence,
-			ConflictGroup:   r.ConflictGroup,
-			Version:         r.Version,
-			LifecycleState:  r.LifecycleState,
-			ConflictWarning: r.ConflictWarn,
-			Suppressed:      r.Suppressed,
-		}
-	}
-	_ = json.NewEncoder(w).Encode(RecallResponse{Results: items})
-}
-
-func (s *Server) handleReinforce(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
-	var req reinforceRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, "invalid json", http.StatusBadRequest)
-		return
-	}
-	req.ID = strings.TrimSpace(req.ID)
-	if req.ID == "" {
-		writeJSONError(w, "id required", http.StatusBadRequest)
-		return
-	}
-	m, err := s.engine.Reinforce(r.Context(), req.ID)
-	if err != nil {
-		writeJSONError(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if m == nil {
-		writeJSONError(w, "memory not found", http.StatusNotFound)
-		return
-	}
-	_ = json.NewEncoder(w).Encode(StoreResponse{
-		ID:             m.ID,
-		Summary:        m.Summary,
-		LifecycleState: m.LifecycleState,
-		ConflictGroup:  m.ConflictGroup,
-		Version:        m.Version,
-	})
-}
-
-func (s *Server) handleForget(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
-	var req forgetRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, "invalid json", http.StatusBadRequest)
-		return
-	}
-	req.ID = strings.TrimSpace(req.ID)
-	if req.ID == "" {
-		writeJSONError(w, "id required", http.StatusBadRequest)
-		return
-	}
-	if err := s.engine.Forget(r.Context(), req.ID); err != nil {
-		writeJSONError(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	_ = json.NewEncoder(w).Encode(map[string]string{"status": "forgotten", "id": req.ID})
-}
-
-func (s *Server) handleExplain(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
-	var req explainRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, "invalid json", http.StatusBadRequest)
-		return
-	}
-	req.Query = strings.TrimSpace(req.Query)
-	if req.Query == "" {
-		writeJSONError(w, "query required", http.StatusBadRequest)
-		return
-	}
-	k := req.K
-	if k <= 0 {
-		k = 5
-	}
-	result, err := s.engine.Explain(r.Context(), req.Query, k, req.MinClarity)
-	if err != nil {
-		writeJSONError(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	items := make([]RecallItem, len(result.Accepted))
-	for i, result := range result.Accepted {
-		items[i] = RecallItem{
-			ID:              result.MemoryID,
+			ID:              result.Memory.ID,
 			Content:         result.Memory.Content,
 			Summary:         result.Summary,
 			ResidualContent: result.Memory.ResidualContent,
@@ -352,7 +208,6 @@ func (s *Server) handleExplain(w http.ResponseWriter, r *http.Request) {
 			DecayStage:      result.DecayStage,
 			LastAccessedAt:  result.LastAccessedAt.Format(time.RFC3339),
 			NeedsGrounding:  result.NeedsGrounding,
-			Source:          result.Source,
 			SourceRefs:      result.SourceRefs,
 			WhyRecalled:     result.WhyRecalled,
 			Evidence:        result.Evidence,
@@ -363,6 +218,97 @@ func (s *Server) handleExplain(w http.ResponseWriter, r *http.Request) {
 			Suppressed:      result.Suppressed,
 		}
 	}
+
+	_ = json.NewEncoder(w).Encode(RecallResponse{Results: items})
+}
+
+func (s *Server) handleReinforce(w http.ResponseWriter, r *http.Request, id string) {
+	m, err := s.engine.Reinforce(r.Context(), id)
+	if err != nil {
+		writeJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if m == nil {
+		writeJSONError(w, "memory not found", http.StatusNotFound)
+		return
+	}
+
+	_ = json.NewEncoder(w).Encode(StoreResponse{
+		ID:             m.ID,
+		Summary:        m.Summary,
+		LifecycleState: m.LifecycleState,
+		ConflictGroup:  m.ConflictGroup,
+		Version:        m.Version,
+	})
+}
+
+func (s *Server) handleForget(w http.ResponseWriter, r *http.Request, id string) {
+	if err := s.engine.Forget(r.Context(), id); err != nil {
+		writeJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "forgotten", "id": id})
+}
+
+func (s *Server) handleDecay(w http.ResponseWriter, r *http.Request) {
+	if err := s.engine.DecayAll(r.Context()); err != nil {
+		writeJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "decayed"})
+}
+
+func (s *Server) handleExplain(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
+	var req explainRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+
+	req.Query = strings.TrimSpace(req.Query)
+	if req.Query == "" {
+		writeJSONError(w, "query required", http.StatusBadRequest)
+		return
+	}
+
+	k := req.K
+	if k <= 0 {
+		k = 5
+	}
+
+	result, err := s.engine.Explain(r.Context(), req.Query, k, req.MinClarity)
+	if err != nil {
+		writeJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	items := make([]RecallItem, len(result.Accepted))
+	for i, accepted := range result.Accepted {
+		items[i] = RecallItem{
+			ID:              accepted.MemoryID,
+			Content:         accepted.Memory.Content,
+			Summary:         accepted.Summary,
+			ResidualContent: accepted.Memory.ResidualContent,
+			Clarity:         accepted.Memory.Clarity,
+			Score:           accepted.Score,
+			Strength:        accepted.Strength,
+			Freshness:       accepted.Freshness,
+			Fuzziness:       accepted.Fuzziness,
+			DecayStage:      accepted.DecayStage,
+			LastAccessedAt:  accepted.LastAccessedAt.Format(time.RFC3339),
+			NeedsGrounding:  accepted.NeedsGrounding,
+			SourceRefs:      accepted.SourceRefs,
+			WhyRecalled:     accepted.WhyRecalled,
+			Evidence:        accepted.Evidence,
+			ConflictGroup:   accepted.ConflictGroup,
+			Version:         accepted.Version,
+			LifecycleState:  accepted.LifecycleState,
+			ConflictWarning: accepted.ConflictWarn,
+			Suppressed:      accepted.Suppressed,
+		}
+	}
+
 	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"query":    result.Query,
 		"accepted": items,
@@ -370,33 +316,54 @@ func (s *Server) handleExplain(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (s *Server) handleMemorySubresource(w http.ResponseWriter, r *http.Request, normalizedPath string) {
-	path := strings.TrimPrefix(normalizedPath, "/memories/")
+func (s *Server) handleMemorySubresource(w http.ResponseWriter, r *http.Request) {
+	path := strings.TrimPrefix(r.URL.Path, "/v1/memories/")
 	parts := strings.Split(strings.Trim(path, "/"), "/")
-	if r.Method != http.MethodGet {
+	if len(parts) == 0 || parts[0] == "" {
 		http.NotFound(w, r)
 		return
 	}
-	if len(parts) == 1 && parts[0] != "" {
-		res, err := s.engine.Get(r.Context(), parts[0])
-		if err != nil {
-			writeJSONError(w, err.Error(), http.StatusInternalServerError)
-			return
+
+	if len(parts) == 1 {
+		id := parts[0]
+		switch r.Method {
+		case http.MethodGet:
+			res, err := s.engine.Get(r.Context(), id)
+			if err != nil {
+				writeJSONError(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			if res == nil {
+				writeJSONError(w, "memory not found", http.StatusNotFound)
+				return
+			}
+			_ = json.NewEncoder(w).Encode(res)
+		case http.MethodDelete:
+			s.handleForget(w, r, id)
+		default:
+			writeJSONError(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
-		if res == nil {
-			writeJSONError(w, "memory not found", http.StatusNotFound)
-			return
-		}
-		_ = json.NewEncoder(w).Encode(res)
 		return
 	}
+
 	if len(parts) != 2 {
 		http.NotFound(w, r)
 		return
 	}
+
 	id, action := parts[0], parts[1]
 	switch action {
+	case "reinforce":
+		if r.Method != http.MethodPost {
+			writeJSONError(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		s.handleReinforce(w, r, id)
 	case "ground", "reconstruct":
+		if r.Method != http.MethodGet {
+			writeJSONError(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
 		res, err := s.engine.Ground(r.Context(), id)
 		if err != nil {
 			writeJSONError(w, err.Error(), http.StatusInternalServerError)
@@ -418,6 +385,10 @@ func (s *Server) handleMemorySubresource(w http.ResponseWriter, r *http.Request,
 		}
 		_ = json.NewEncoder(w).Encode(res)
 	case "versions":
+		if r.Method != http.MethodGet {
+			writeJSONError(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
 		results, err := s.engine.Versions(r.Context(), id)
 		if err != nil {
 			writeJSONError(w, err.Error(), http.StatusInternalServerError)

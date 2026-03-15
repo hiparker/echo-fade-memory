@@ -11,15 +11,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/basic/util/safe"
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/config"
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/core/decay"
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/core/model"
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/core/transform"
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/port/embedding"
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/port/memstore"
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/port/store"
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/port/storefactory"
+	"github.com/hiparker/echo-fade-memory/pkg/basic/util/safe"
+	"github.com/hiparker/echo-fade-memory/pkg/config"
+	"github.com/hiparker/echo-fade-memory/pkg/core/decay"
+	"github.com/hiparker/echo-fade-memory/pkg/core/model"
+	"github.com/hiparker/echo-fade-memory/pkg/core/transform"
+	"github.com/hiparker/echo-fade-memory/pkg/port/embedding"
+	"github.com/hiparker/echo-fade-memory/pkg/port/memstore"
+	"github.com/hiparker/echo-fade-memory/pkg/port/store"
+	"github.com/hiparker/echo-fade-memory/pkg/port/storefactory"
 	"github.com/google/uuid"
 )
 
@@ -201,7 +201,6 @@ type RecallResult struct {
 	DecayStage     string            `json:"decay_stage"`
 	LastAccessedAt time.Time         `json:"last_accessed_at"`
 	NeedsGrounding bool              `json:"needs_grounding"`
-	Source         string            `json:"source,omitempty"`
 	SourceRefs     []model.SourceRef `json:"source_refs,omitempty"`
 	WhyRecalled    []string          `json:"why_recalled,omitempty"`
 	Evidence       []RecallEvidence  `json:"evidence,omitempty"`
@@ -222,7 +221,6 @@ type RecallTraceCandidate struct {
 	Strength        float64           `json:"strength"`
 	Freshness       float64           `json:"freshness"`
 	NeedsGrounding  bool              `json:"needs_grounding"`
-	Source          string            `json:"source,omitempty"`
 	SourceRefs      []model.SourceRef `json:"source_refs,omitempty"`
 	VectorScore     float64           `json:"vector_score,omitempty"`
 	VectorRank      int               `json:"vector_rank,omitempty"`
@@ -310,14 +308,9 @@ func (e *Engine) recallWithTrace(ctx context.Context, query string, k int, minCl
 		bm25RankMap[id] = i + 1
 	}
 
-	memories, err := e.mem.ListAll()
-	if err != nil {
-		return nil, nil, err
-	}
-	conflicts := buildConflictIndex(memories)
-
 	var results []RecallResult
 	var filtered []RecallTraceCandidate
+	conflicts := make(map[string]conflictInfo)
 	now := time.Now()
 	for _, item := range combined {
 		m, err := e.mem.Get(item.id)
@@ -330,15 +323,17 @@ func (e *Engine) recallWithTrace(ctx context.Context, query string, k int, minCl
 			})
 			continue
 		}
-		if m.LifecycleState == "" {
-			m.LifecycleState = model.LifecycleStateFromClarity(m.Clarity)
+		normalizeLoadedMemory(m)
+		conflict, err := e.conflictInfo(m.ConflictGroup, conflicts)
+		if err != nil {
+			return nil, nil, err
 		}
 		trace := buildTraceCandidate(m, item, vecScoreMap, vecRankMap, bm25ScoreMap, bm25RankMap, conflicts, now)
 		filterReasons := make([]string, 0, 4)
 		if m.Clarity < minClarity {
 			filterReasons = append(filterReasons, "below_min_clarity")
 		}
-		if conflict, ok := conflicts[m.ConflictGroup]; ok && conflict.count > 1 && m.Version < conflict.latestVersion {
+		if conflict.count > 1 && m.Version < conflict.latestVersion {
 			filterReasons = append(filterReasons, "superseded_by_newer_version")
 		}
 		if len(results) >= k {
@@ -355,7 +350,6 @@ func (e *Engine) recallWithTrace(ctx context.Context, query string, k int, minCl
 			_ = e.mem.UpdateAccess(m.ID, m.AccessCount)
 		}
 		evidence := recallEvidence(m.ID, vecScoreMap, vecRankMap, bm25ScoreMap, bm25RankMap)
-		conflict := conflicts[m.ConflictGroup]
 		results = append(results, RecallResult{
 			Memory:         m,
 			MemoryID:       m.ID,
@@ -367,7 +361,6 @@ func (e *Engine) recallWithTrace(ctx context.Context, query string, k int, minCl
 			DecayStage:     m.ResidualForm,
 			LastAccessedAt: now,
 			NeedsGrounding: needsGrounding(m, evidence, conflict),
-			Source:         m.PrimarySource(),
 			SourceRefs:     m.SourceRefs,
 			WhyRecalled:    whyRecalled(m, evidence, conflict),
 			Evidence:       evidence,
@@ -446,7 +439,6 @@ type GroundResult struct {
 	ResidualContent string            `json:"residual_content"`
 	Strength        float64           `json:"strength"`
 	DecayStage      string            `json:"decay_stage"`
-	Source          string            `json:"source,omitempty"`
 	SourceRefs      []model.SourceRef `json:"source_refs,omitempty"`
 	GroundingStatus string            `json:"grounding_status,omitempty"`
 	ConflictGroup   string            `json:"conflict_group,omitempty"`
@@ -460,6 +452,7 @@ func (e *Engine) Ground(ctx context.Context, id string) (*GroundResult, error) {
 	if err != nil || m == nil {
 		return nil, err
 	}
+	normalizeLoadedMemory(m)
 	return &GroundResult{
 		MemoryID:        m.ID,
 		Summary:         recallSummary(m),
@@ -467,7 +460,6 @@ func (e *Engine) Ground(ctx context.Context, id string) (*GroundResult, error) {
 		ResidualContent: m.ResidualContent,
 		Strength:        m.Clarity,
 		DecayStage:      m.ResidualForm,
-		Source:          m.PrimarySource(),
 		SourceRefs:      m.SourceRefs,
 		GroundingStatus: m.GroundingStatus,
 		ConflictGroup:   m.ConflictGroup,
@@ -487,15 +479,13 @@ func (e *Engine) Versions(ctx context.Context, id string) ([]GroundResult, error
 	if err != nil || current == nil {
 		return nil, err
 	}
-	memories, err := e.mem.ListAll()
+	memories, err := e.mem.ListByConflictGroup(current.ConflictGroup)
 	if err != nil {
 		return nil, err
 	}
 	results := make([]GroundResult, 0)
 	for _, m := range memories {
-		if m.ConflictGroup != current.ConflictGroup {
-			continue
-		}
+		normalizeLoadedMemory(m)
 		results = append(results, GroundResult{
 			MemoryID:        m.ID,
 			Summary:         recallSummary(m),
@@ -503,7 +493,6 @@ func (e *Engine) Versions(ctx context.Context, id string) ([]GroundResult, error
 			ResidualContent: m.ResidualContent,
 			Strength:        m.Clarity,
 			DecayStage:      m.ResidualForm,
-			Source:          m.PrimarySource(),
 			SourceRefs:      m.SourceRefs,
 			GroundingStatus: m.GroundingStatus,
 			ConflictGroup:   m.ConflictGroup,
@@ -511,7 +500,6 @@ func (e *Engine) Versions(ctx context.Context, id string) ([]GroundResult, error
 			LifecycleState:  m.LifecycleState,
 		})
 	}
-	sort.Slice(results, func(i, j int) bool { return results[i].Version > results[j].Version })
 	return results, nil
 }
 
@@ -688,38 +676,14 @@ func (e *Engine) nextVersion(conflictGroup string) (int, error) {
 	if conflictGroup == "" {
 		return 1, nil
 	}
-	memories, err := e.mem.ListAll()
+	latest, err := e.mem.GetLatestByConflictGroup(conflictGroup)
 	if err != nil {
 		return 0, err
 	}
-	maxVersion := 0
-	for _, m := range memories {
-		if m.ConflictGroup == conflictGroup && m.Version > maxVersion {
-			maxVersion = m.Version
-		}
+	if latest == nil {
+		return 1, nil
 	}
-	return maxVersion + 1, nil
-}
-
-func buildConflictIndex(memories []*model.Memory) map[string]conflictInfo {
-	index := make(map[string]conflictInfo)
-	for _, m := range memories {
-		if m == nil || m.ConflictGroup == "" {
-			continue
-		}
-		info := index[m.ConflictGroup]
-		info.count++
-		if m.Version > info.latestVersion {
-			info.latestVersion = m.Version
-		}
-		info.versions = append(info.versions, m.Version)
-		index[m.ConflictGroup] = info
-	}
-	for key, info := range index {
-		sort.Ints(info.versions)
-		index[key] = info
-	}
-	return index
+	return latest.Version + 1, nil
 }
 
 func suppressedVersions(current int, versions []int) []int {
@@ -755,7 +719,6 @@ func buildTraceCandidate(
 		Strength:       m.Clarity,
 		Freshness:      freshnessScore(m, now),
 		NeedsGrounding: needsGrounding(m, recallEvidence(m.ID, vecScoreMap, vecRankMap, bm25ScoreMap, bm25RankMap), conflict),
-		Source:         m.PrimarySource(),
 		SourceRefs:     m.SourceRefs,
 		VectorScore:    vecScoreMap[m.ID],
 		VectorRank:     vecRankMap[m.ID],
@@ -764,5 +727,50 @@ func buildTraceCandidate(
 		FusedScore:     item.score,
 		Accepted:       true,
 		LatestVersion:  conflict.latestVersion,
+	}
+}
+
+func (e *Engine) conflictInfo(conflictGroup string, cache map[string]conflictInfo) (conflictInfo, error) {
+	if conflictGroup == "" {
+		return conflictInfo{}, nil
+	}
+	if info, ok := cache[conflictGroup]; ok {
+		return info, nil
+	}
+	memories, err := e.mem.ListByConflictGroup(conflictGroup)
+	if err != nil {
+		return conflictInfo{}, err
+	}
+	info := buildConflictInfo(memories)
+	cache[conflictGroup] = info
+	return info, nil
+}
+
+func buildConflictInfo(memories []*model.Memory) conflictInfo {
+	info := conflictInfo{}
+	for _, m := range memories {
+		if m == nil {
+			continue
+		}
+		info.count++
+		if m.Version > info.latestVersion {
+			info.latestVersion = m.Version
+		}
+		info.versions = append(info.versions, m.Version)
+	}
+	sort.Ints(info.versions)
+	return info
+}
+
+func normalizeLoadedMemory(m *model.Memory) {
+	if m == nil {
+		return
+	}
+	if m.LifecycleState == "" {
+		m.LifecycleState = model.LifecycleStateFromClarity(m.Clarity)
+	}
+	if m.ResidualForm == "" {
+		stage := decay.ResidualFormFromClarity(m.Clarity, decay.DefaultParams())
+		m.ResidualForm = decay.ResidualFormName(stage)
 	}
 }

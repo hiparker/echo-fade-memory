@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/config"
+	"github.com/hiparker/echo-fade-memory/pkg/config"
 )
 
 // Store is unavailable unless the LanceDB build tag and CGO are enabled.

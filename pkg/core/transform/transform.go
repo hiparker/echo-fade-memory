@@ -4,7 +4,7 @@ import (
 	"math"
 	"strings"
 
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/core/model"
+	"github.com/hiparker/echo-fade-memory/pkg/core/model"
 )
 
 // ToResidualContinuous: strength in [0,1] → retain ratio. No stages.

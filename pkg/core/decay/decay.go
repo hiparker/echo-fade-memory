@@ -4,7 +4,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/core/model"
+	"github.com/hiparker/echo-fade-memory/pkg/core/model"
 )
 
 // Params: minimal. τ=halflife (days), α=shape, ε=reinforcement weight.

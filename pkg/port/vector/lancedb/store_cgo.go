@@ -16,7 +16,7 @@ import (
 	"github.com/apache/arrow/go/v17/arrow"
 	"github.com/apache/arrow/go/v17/arrow/array"
 	"github.com/apache/arrow/go/v17/arrow/memory"
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/config"
+	"github.com/hiparker/echo-fade-memory/pkg/config"
 	"github.com/lancedb/lancedb-go/pkg/contracts"
 	sdklancedb "github.com/lancedb/lancedb-go/pkg/lancedb"
 )

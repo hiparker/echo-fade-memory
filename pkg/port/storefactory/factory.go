@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/config"
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/port/memstore"
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/port/store"
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/port/store/mysql"
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/port/store/postgres"
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/port/store/sqlite"
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/port/vector/lancedb"
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/port/vector/local"
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/port/vector/milvus"
+	"github.com/hiparker/echo-fade-memory/pkg/config"
+	"github.com/hiparker/echo-fade-memory/pkg/port/memstore"
+	"github.com/hiparker/echo-fade-memory/pkg/port/store"
+	"github.com/hiparker/echo-fade-memory/pkg/port/store/mysql"
+	"github.com/hiparker/echo-fade-memory/pkg/port/store/postgres"
+	"github.com/hiparker/echo-fade-memory/pkg/port/store/sqlite"
+	"github.com/hiparker/echo-fade-memory/pkg/port/vector/lancedb"
+	"github.com/hiparker/echo-fade-memory/pkg/port/vector/local"
+	"github.com/hiparker/echo-fade-memory/pkg/port/vector/milvus"
 )
 
 // NewVectorStore creates a vector store from config.
@@ -35,7 +35,7 @@ func NewVectorStore(cfg *config.Config) (store.VectorStore, error) {
 // NewMemoryStore creates a memory store from config.
 func NewMemoryStore(cfg *config.Config) (memstore.MemoryStore, error) {
 	switch strings.ToLower(cfg.Storage.Type) {
-	case "sqlite":
+	case "", "sqlite":
 		return sqlite.New(cfg.SQLitePath())
 	case "mysql":
 		if cfg.Storage.MySQLDSN == "" {
@@ -48,6 +48,6 @@ func NewMemoryStore(cfg *config.Config) (memstore.MemoryStore, error) {
 		}
 		return postgres.New(cfg.Storage.PostgresDSN)
 	default:
-		return sqlite.New(cfg.SQLitePath())
+		return nil, fmt.Errorf("unsupported storage type %q", cfg.Storage.Type)
 	}
 }

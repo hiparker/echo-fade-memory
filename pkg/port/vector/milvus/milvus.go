@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/config"
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/port/vector"
+	"github.com/hiparker/echo-fade-memory/pkg/config"
+	"github.com/hiparker/echo-fade-memory/pkg/port/vector"
 	"github.com/milvus-io/milvus-sdk-go/v2/client"
 	"github.com/milvus-io/milvus-sdk-go/v2/entity"
 )

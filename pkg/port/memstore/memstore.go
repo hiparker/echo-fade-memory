@@ -1,7 +1,7 @@
 package memstore
 
 import (
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/core/model"
+	"github.com/hiparker/echo-fade-memory/pkg/core/model"
 )
 
 // MemoryStore is the interface for memory metadata persistence (SQL).
@@ -11,6 +11,8 @@ type MemoryStore interface {
 	Delete(id string) error
 	List() ([]string, error)
 	ListAll() ([]*model.Memory, error)
+	ListByConflictGroup(conflictGroup string) ([]*model.Memory, error)
+	GetLatestByConflictGroup(conflictGroup string) (*model.Memory, error)
 	UpdateAccess(id string, count int) error
 	UpdateDecay(id string, clarity float64, lifecycleState, residualForm, residualContent string) error
 	UpdateDecayBatch(updates []DecayUpdate) error

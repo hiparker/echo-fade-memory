@@ -69,17 +69,6 @@ var StageThresholds = map[DecayStage]int{
 	StageOutline:  180,
 }
 
-// PrimarySource returns the most representative source ref.
-func (m *Memory) PrimarySource() string {
-	if len(m.SourceRefs) == 0 {
-		return ""
-	}
-	if m.SourceRefs[0].Kind == "" {
-		return m.SourceRefs[0].Ref
-	}
-	return m.SourceRefs[0].Kind + ":" + m.SourceRefs[0].Ref
-}
-
 // Fuzziness returns how blurry the memory currently is.
 func (m *Memory) Fuzziness() float64 {
 	if m.Clarity <= 0 {
