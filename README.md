@@ -75,15 +75,12 @@ make build
 
 ```bash
 # 方式一：先启动外部 Ollama 容器，再启动 echo-fade-memory
-# 默认 local；需要 LanceDB 时加上 VECTOR_STORE_TYPE=lancedb
+# 默认 lancedb；需用 local 验证时加 VECTOR_STORE_TYPE=local
 ./scripts/start-ollama-embedding.sh
 docker compose up --build
-VECTOR_STORE_TYPE=lancedb docker compose up --build
 
 # 方式二：含 Ollama，自动拉取 nomic-embed-text
-# 默认 local；需要 LanceDB 时加上 VECTOR_STORE_TYPE=lancedb
 docker compose -f docker-compose.ollama.yml up --build
-VECTOR_STORE_TYPE=lancedb docker compose -f docker-compose.ollama.yml up --build
 ```
 
 ---
@@ -96,7 +93,7 @@ Copy `config.example.json` to `config.json` and customize:
 |---------|-----|-------------|
 | embedding | type, url, model, dimensions, api_key, base_url | `type`: ollama, openai, gemini; `url` for ollama; `api_key` for openai/gemini |
 | decay | tau, alpha, epsilon | strength = 1/(1+(t/τ)^α) × reinforce; tau=halflife, alpha=shape |
-| vector_store | type, path, milvus_host, milvus_port, milvus_db | `local` (default), `lancedb`, `milvus` |
+| vector_store | type, path, milvus_host, milvus_port, milvus_db | `local`, `lancedb` (Docker default), `milvus` |
 | storage | type, path | `sqlite` (default), `postgres`, `mysql` |
 
 Env vars: `EMBEDDING_TYPE`, `EMBEDDING_URL`, `EMBEDDING_MODEL`, `EMBEDDING_API_KEY`, `ECHO_FADE_MEMORY_HOME`, `ECHO_FADE_MEMORY_WORKSPACE`, etc.
@@ -130,8 +127,8 @@ By default the project uses a global runtime home:
 
 ### Vector Backends
 
-- `local`: default backend for local development and all default tests; stores vectors in the active workspace `vectors.json`.
-- `lancedb`: real LanceDB adapter. Local Go builds are opt-in via `-tags lancedb`; the Docker image already includes LanceDB support and only needs `VECTOR_STORE_TYPE=lancedb` at runtime.
+- `local`: for `make build` / `make test` verification; stores vectors in `vectors.json`.
+- `lancedb`: default for Docker; real LanceDB adapter. Local Go builds are opt-in via `-tags lancedb`.
 - `milvus`: external service backend for larger or remote deployments.
 
 Invalid `vector_store.type` values now fail fast. `lancedb` no longer falls back to `local`.

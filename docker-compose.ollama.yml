@@ -20,7 +20,7 @@ services:
       HOME: /root
       ECHO_FADE_MEMORY_HOME: /root/.echo-fade-memory
       ECHO_FADE_MEMORY_WORKSPACE: echo-fade-memory
-      VECTOR_STORE_TYPE: ${VECTOR_STORE_TYPE:-local}
+      VECTOR_STORE_TYPE: ${VECTOR_STORE_TYPE:-lancedb}
       EMBEDDING_TYPE: ollama
       EMBEDDING_URL: http://ollama-nomic-embed-text:11434
       EMBEDDING_MODEL: nomic-embed-text
