@@ -10,6 +10,7 @@ import (
 	"github.com/echo-fade-memory/echo-fade-memory/pkg/port/store/mysql"
 	"github.com/echo-fade-memory/echo-fade-memory/pkg/port/store/postgres"
 	"github.com/echo-fade-memory/echo-fade-memory/pkg/port/store/sqlite"
+	"github.com/echo-fade-memory/echo-fade-memory/pkg/port/vector/lancedb"
 	"github.com/echo-fade-memory/echo-fade-memory/pkg/port/vector/local"
 	"github.com/echo-fade-memory/echo-fade-memory/pkg/port/vector/milvus"
 )
@@ -20,14 +21,14 @@ func NewVectorStore(cfg *config.Config) (store.VectorStore, error) {
 	case "local":
 		return local.New(cfg.VectorPath())
 	case "lancedb":
-		return local.New(cfg.VectorPath())
+		return lancedb.New(cfg)
 	case "milvus":
 		if cfg.VectorStore.MilvusHost == "" {
 			return nil, fmt.Errorf("vector_store type=milvus requires milvus_host or MILVUS_HOST")
 		}
 		return milvus.New(cfg)
 	default:
-		return local.New(cfg.VectorPath())
+		return nil, fmt.Errorf("unsupported vector_store type %q", cfg.VectorStore.Type)
 	}
 }
 
