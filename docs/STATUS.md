@@ -54,7 +54,7 @@
 
 | 规划 | 实现 | 说明 |
 |------|------|------|
-| 向量检索 | ✅ | 本地 JSON 向量 + 余弦相似度 |
+| 向量检索 | ✅ | 默认 local JSON；已接入可选 LanceDB / Milvus 后端 |
 | BM25 关键词 | ✅ | Bleve |
 | 知识图谱 | ❌ | 未实现 |
 | RRF 融合 | ✅ | 向量 + BM25 融合 |
@@ -70,7 +70,9 @@
 | 规划 | 实现 | 说明 |
 |------|------|------|
 | Go | ✅ | |
-| LanceDB | ⚠️ | 配置支持，实际用 local JSON（无 CGO） |
+| LanceDB | ✅ | 真实适配器已接入；默认通过 `lancedb` build tag + CGO 原生库显式启用 |
+| Local vector store | ✅ | 默认后端，纯 Go，本地开发与测试基线 |
+| Milvus | ✅ | 外部服务化后端 |
 | Bleve | ✅ | |
 | Ollama nomic-embed-text | ✅ | |
 | SQLite | ✅ | modernc.org/sqlite 纯 Go |
@@ -108,7 +110,7 @@
 
 ## 8. 与规划的差异
 
-1. **向量存储**：规划 LanceDB，实现为 local JSON（避免 CGO）
+1. **向量存储**：从“仅规划 LanceDB”调整为三后端策略：默认 `local`，可选真实 `lancedb`，以及外部 `milvus`
 2. **衰减公式**：规划多因子（linkage、孤立惩罚），实现为简化 strength 公式
 3. **Residual**：规划摘要/关键词/情感；当前已实现规则式摘要/关键词/片段，尚非结构化情感抽取
 4. **记忆图**：规划有向加权图，实现无 linkage

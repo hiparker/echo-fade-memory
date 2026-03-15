@@ -17,6 +17,7 @@ echo-fade-memory/
 │   │   └── engine/         # 记忆引擎
 │   ├── port/               # 端口/适配器
 │   │   └── store/          # 存储接口与实现 (SQLite, Vector, Bleve)
+│   ├── test/               # 自动化测试 (engine/api/config/integration/testutil)
 │   └── portal/             # 入口层
 │       └── api/            # HTTP API
 └── config.example.json
@@ -32,4 +33,5 @@ echo-fade-memory/
 | **core** | 核心 | 领域模型、衰减、变形、引擎 |
 | **port/store** | 存储端口 | MemoryStore、VectorStore 接口及实现 |
 | **port/embedding** | 嵌入端口 | Provider 接口及实现 (Ollama, OpenAI, Gemini) |
+| **test** | 测试 | 统一收敛的自动化测试与 testutil |
 | **portal/api** | HTTP 入口 | REST API Server |

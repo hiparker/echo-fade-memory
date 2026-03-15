@@ -277,7 +277,7 @@ recall(query) =
 
 | 组件      | 选型                            | 配置                   |
 | ------- | ----------------------------- | -------------------- |
-| 向量存储    | **LanceDB**                   | 本地、轻量、无服务            |
+| 向量存储    | **local / LanceDB / Milvus** | `local` 默认；LanceDB 通过 build tag 显式启用；Milvus 用于外部部署 |
 | BM25/全文 | **Bleve**                     | BM25 评分、RRF 融合、多语言分词 |
 | 嵌入      | **Ollama + nomic-embed-text** | 本地推理，768 维           |
 
@@ -302,19 +302,23 @@ recall(query) =
 | ---------- | ------------------------------------------ |
 | **直接运行**   | 单二进制，`./echo-fade-memory serve`，无运行时依赖     |
 | **Docker** | Dockerfile + docker-compose，数据卷挂载          |
-| **存储可移植**  | 所有数据集中在 `$DATA_PATH`（默认 `./data`），可整体备份/迁移 |
+| **存储可移植**  | 数据落在 `$DATA_PATH`；默认运行时布局为 `~/.echo-fade-memory/workspaces/<workspace>/data` |
 
 **存储目录结构**（便于备份）：
 
-```
-data/
-├── lancedb/      # 向量
-├── bleve/        # 全文索引
-├── memories.db   # SQLite 记忆元数据
-└── config.json   # 可选覆盖
+```text
+~/.echo-fade-memory/
+├── include/                    # 共享 LanceDB 头文件
+├── lib/<platform_arch>/        # 共享 LanceDB 原生库
+└── workspaces/<workspace-id>/
+    └── data/
+        ├── vectors.json        # 默认 local 向量
+        ├── lancedb/            # 可选 LanceDB 向量目录
+        ├── bleve/              # 全文索引
+        └── memories.db         # SQLite 记忆元数据
 ```
 
-备份：`tar -czvf backup.tar.gz data/`；迁移：解压到新环境即可。
+备份：`tar -czvf backup.tar.gz ~/.echo-fade-memory/workspaces/<workspace-id>/data`；迁移：解压到新的 runtime home 即可。
 
 ### Skill 触发友好
 

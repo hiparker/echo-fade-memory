@@ -269,7 +269,7 @@ Start with core engine, then split by scenario.
 
 | Component   | Choice                         | Config                    |
 | ----------- | ------------------------------ | ------------------------- |
-| Vector store| **LanceDB**                    | Local, lightweight, serverless |
+| Vector store| **local / LanceDB / Milvus**   | `local` default; LanceDB opt-in via build tag; Milvus for external deployment |
 | BM25/Full-text | **Bleve**                    | BM25 scoring, RRF fusion, multilingual tokenization |
 | Embedding   | **Ollama + nomic-embed-text**  | Local inference, 768 dim  |
 
@@ -294,19 +294,23 @@ Start with core engine, then split by scenario.
 | -------------- | -------------------------------------------------------- |
 | **Direct run** | Single binary, `./echo-fade-memory serve`, no runtime dep |
 | **Docker**     | Dockerfile + docker-compose, volume mount                 |
-| **Portable storage** | All data in `$DATA_PATH` (default `./data`), backup/migrate as a whole |
+| **Portable storage** | Data lives in `$DATA_PATH`; default runtime layout is `~/.echo-fade-memory/workspaces/<workspace>/data` |
 
 **Storage layout** (easy backup):
 
-```
-data/
-├── lancedb/      # Vectors
-├── bleve/        # Full-text index
-├── memories.db   # SQLite memory metadata
-└── config.json   # Optional override
+```text
+~/.echo-fade-memory/
+├── include/                    # Shared LanceDB headers
+├── lib/<platform_arch>/        # Shared LanceDB native libraries
+└── workspaces/<workspace-id>/
+    └── data/
+        ├── vectors.json        # Default local vectors
+        ├── lancedb/            # Optional LanceDB vectors
+        ├── bleve/              # Full-text index
+        └── memories.db         # SQLite memory metadata
 ```
 
-Backup: `tar -czvf backup.tar.gz data/`; migrate: extract to new environment.
+Backup: `tar -czvf backup.tar.gz ~/.echo-fade-memory/workspaces/<workspace-id>/data`; migrate: extract into a new runtime home.
 
 ### Skill-Trigger Friendly
 
