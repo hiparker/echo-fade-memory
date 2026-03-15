@@ -1,0 +1,45 @@
+# GoReleaser config for echo-fade-memory
+# https://goreleaser.com/reference/config.html
+
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: echo-fade-memory
+    main: ./cmd/echo-fade-memory
+    binary: echo-fade-memory
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+    env:
+      - CGO_ENABLED=0
+
+archives:
+  - id: default
+    format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    files:
+      - README.md
+      - config.example.json
+
+checksum:
+  name_template: checksums.txt
+
+release:
+  github:
+    owner: hiparker
+    name: echo-fade-memory
+  draft: false
