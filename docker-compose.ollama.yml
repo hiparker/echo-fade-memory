@@ -7,7 +7,7 @@ services:
     ports:
       - "11434:11434"
     volumes:
-      - ollama_data:/root/.ollama
+      - ollama-embed-data:/root/.ollama
     command: ["sh", "-c", "ollama serve & sleep 15 && ollama pull nomic-embed-text && wait"]
 
   echo-fade-memory:
@@ -17,14 +17,16 @@ services:
     ports:
       - "8080:8080"
     environment:
-      DATA_PATH: /data
+      HOME: /root
+      ECHO_FADE_MEMORY_HOME: /root/.echo-fade-memory
+      ECHO_FADE_MEMORY_WORKSPACE: echo-fade-memory
+      VECTOR_STORE_TYPE: ${VECTOR_STORE_TYPE:-local}
       EMBEDDING_TYPE: ollama
       EMBEDDING_URL: http://ollama-nomic-embed-text:11434
       EMBEDDING_MODEL: nomic-embed-text
       EMBEDDING_DIMENSIONS: "768"
     volumes:
-      - echo-fade-data:/data
+      - ${HOME}/.echo-fade-memory:/root/.echo-fade-memory
 
 volumes:
-  ollama_data:
-  echo-fade-data:
+  ollama-embed-data:

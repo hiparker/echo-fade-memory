@@ -14,10 +14,10 @@ services:
     environment:
       HOME: /root
       ECHO_FADE_MEMORY_HOME: /root/.echo-fade-memory
-      ECHO_FADE_MEMORY_WORKSPACE: echo-fade-memory
+      ECHO_FADE_MEMORY_WORKSPACE: echo-fade-memory-dev
       VECTOR_STORE_TYPE: ${VECTOR_STORE_TYPE:-local}
       EMBEDDING_TYPE: ollama
-      EMBEDDING_URL: http://ollama-nomic-embed-text:11434
+      EMBEDDING_URL: http://host.docker.internal:11434
       EMBEDDING_MODEL: nomic-embed-text
       EMBEDDING_DIMENSIONS: "768"
     volumes:
