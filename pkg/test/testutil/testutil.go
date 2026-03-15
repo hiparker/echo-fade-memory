@@ -6,12 +6,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/config"
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/core/engine"
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/port/embedding"
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/port/store"
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/port/store/sqlite"
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/port/vector/local"
+	"github.com/hiparker/echo-fade-memory/pkg/config"
+	"github.com/hiparker/echo-fade-memory/pkg/core/engine"
+	"github.com/hiparker/echo-fade-memory/pkg/port/embedding"
+	"github.com/hiparker/echo-fade-memory/pkg/port/store"
+	"github.com/hiparker/echo-fade-memory/pkg/port/store/sqlite"
+	"github.com/hiparker/echo-fade-memory/pkg/port/vector/local"
 )
 
 type fakeEmbedder struct{}

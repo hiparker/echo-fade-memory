@@ -6,7 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/echo-fade-memory/echo-fade-memory/pkg/config"
+	"github.com/hiparker/echo-fade-memory/pkg/config"
+	"github.com/hiparker/echo-fade-memory/pkg/port/storefactory"
 )
 
 func TestLoadMissingConfigFallsBackToDefaults(t *testing.T) {
@@ -122,5 +123,30 @@ func TestLoadRespectsWorkspaceOverride(t *testing.T) {
 	}
 	if !strings.Contains(cfg.DataPath, filepath.Join("workspaces", "demo-project", "data")) {
 		t.Fatalf("DataPath = %q, want workspace override path", cfg.DataPath)
+	}
+}
+
+func TestFactoryRejectsUnsupportedStorageType(t *testing.T) {
+	cfg := config.Default()
+	cfg.Storage.Type = "mongodb"
+
+	if _, err := storefactory.NewMemoryStore(cfg); err == nil {
+		t.Fatal("NewMemoryStore succeeded for unsupported storage type, want error")
+	}
+}
+
+func TestFactoryRejectsMissingRemoteStoreConfig(t *testing.T) {
+	cfg := config.Default()
+	cfg.Storage.Type = "mysql"
+	cfg.Storage.MySQLDSN = ""
+	if _, err := storefactory.NewMemoryStore(cfg); err == nil {
+		t.Fatal("NewMemoryStore succeeded for mysql without dsn, want error")
+	}
+
+	cfg = config.Default()
+	cfg.VectorStore.Type = "milvus"
+	cfg.VectorStore.MilvusHost = ""
+	if _, err := storefactory.NewVectorStore(cfg); err == nil {
+		t.Fatal("NewVectorStore succeeded for milvus without host, want error")
 	}
 }
