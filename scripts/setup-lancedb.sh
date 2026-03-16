@@ -3,10 +3,9 @@ set -euo pipefail
 
 VERSION="${LANCEDB_GO_VERSION:-v0.1.2}"
 RUNTIME_HOME="${ECHO_FADE_MEMORY_HOME:-$HOME/.echo-fade-memory}"
-LANCEDB_GO_SOURCE_URL="${LANCEDB_GO_SOURCE_URL:-https://github.com/lancedb/lancedb-go.git}"
-LANCEDB_RUST_SOURCE_URL="${LANCEDB_RUST_SOURCE_URL:-https://github.com/lancedb/lancedb.git}"
-LANCEDB_GO_RELEASE_BASE_URLS="${LANCEDB_GO_RELEASE_BASE_URLS:-}"
-LANCEDB_GO_RELEASE_BASE_URL="${LANCEDB_GO_RELEASE_BASE_URL:-}"
+LANCEDB_GO_SOURCE_URL="${LANCEDB_GO_SOURCE_URL:-}"
+LANCEDB_RUST_SOURCE_URL="${LANCEDB_RUST_SOURCE_URL:-}"
+LANCEDB_ENABLE_SOURCE_MIRROR="${LANCEDB_ENABLE_SOURCE_MIRROR:-1}"
 FORCE=0
 STATIC=0
 
@@ -55,170 +54,90 @@ lib_dir="${RUNTIME_HOME}/lib/${platform_arch}"
 
 mkdir -p "${include_dir}" "${lib_dir}"
 
-release_bases=()
-if [[ -n "${LANCEDB_GO_RELEASE_BASE_URLS}" ]]; then
-  IFS=',' read -r -a release_bases <<< "${LANCEDB_GO_RELEASE_BASE_URLS}"
-elif [[ -n "${LANCEDB_GO_RELEASE_BASE_URL}" ]]; then
-  release_bases=("${LANCEDB_GO_RELEASE_BASE_URL}")
-else
-  release_bases=("https://github.com/lancedb/lancedb-go/releases/download/${VERSION}")
-fi
-
-trim_url() {
-  local raw="$1"
-  raw="${raw#"${raw%%[![:space:]]*}"}"
-  raw="${raw%"${raw##*[![:space:]]}"}"
-  raw="${raw%/}"
-  printf '%s' "${raw}"
-}
-
-download() {
-  local url="$1"
-  local target="$2"
-  local tmp="${target}.tmp"
-  echo "==> downloading $(basename "$target")"
-  curl -L --fail -o "${tmp}" "${url}"
-  mv "${tmp}" "${target}"
-}
-
-download_from_bases_if_needed() {
-  local asset="$1"
-  local target="$2"
-  if [[ -f "${target}" && "${FORCE}" -eq 0 ]]; then
-    echo "==> reuse $(basename "$target")"
-    return
-  fi
-  local base
-  local url
-  local err=1
-  for base in "${release_bases[@]}"; do
-    base="$(trim_url "${base}")"
-    [[ -z "${base}" ]] && continue
-    url="${base}/${asset}"
-    echo "==> downloading $(basename "$target") from ${base}"
-    if download "${url}" "${target}"; then
-      err=0
-      break
-    fi
-  done
-  if [[ "${err}" -ne 0 ]]; then
-    return 1
-  fi
-}
-
-extract_from_archive() {
-  local archive="$1"
-  local member="$2"
-  local target="$3"
-  local tmp_dir
-  tmp_dir="$(mktemp -d)"
-  trap 'rm -rf "${tmp_dir}"' EXIT
-  tar -xzf "${archive}" -C "${tmp_dir}" "${member}"
-  mv "${tmp_dir}/${member}" "${target}"
-  trap - EXIT
-  rm -rf "${tmp_dir}"
-}
-
-header_target="${include_dir}/lancedb.h"
-
-asset_name=""
-archive_fallback=0
-
 if [[ "${STATIC}" -eq 1 ]]; then
-  asset_name="liblancedb_go.a"
+  lib_target="${lib_dir}/liblancedb_go.a"
 else
   case "${platform}" in
-    darwin) asset_name="liblancedb_go.dylib" ;;
-    linux) asset_name="liblancedb_go.so" ;;
-    windows) archive_fallback=1 ;;
+    darwin) lib_target="${lib_dir}/liblancedb_go.dylib" ;;
+    linux) lib_target="${lib_dir}/liblancedb_go.so" ;;
+    windows) lib_target="${lib_dir}/liblancedb_go.a" ;;
   esac
 fi
 
-release_failed=0
-if ! download_from_bases_if_needed "lancedb.h" "${header_target}"; then
-  release_failed=1
-fi
+header_target="${include_dir}/lancedb.h"
 
-if [[ "${release_failed}" -eq 0 ]]; then
-  if [[ "${archive_fallback}" -eq 0 ]]; then
-    lib_target="${lib_dir}/${asset_name}"
-    if ! download_from_bases_if_needed "${asset_name}" "${lib_target}"; then
-      release_failed=1
-    fi
-  else
-    archive="${lib_dir}/lancedb-go-native-binaries.tar.gz"
-    if ! download_from_bases_if_needed "lancedb-go-native-binaries.tar.gz" "${archive}"; then
-      release_failed=1
-    else
-      extract_from_archive "${archive}" "include/lancedb.h" "${header_target}"
-      extract_from_archive "${archive}" "lib/${platform_arch}/liblancedb_go.a" "${lib_dir}/liblancedb_go.a"
-      if [[ "${platform}" == "windows" ]]; then
-        echo "==> note: windows fallback extracted the static library from the release archive"
-      fi
-      lib_target="${lib_dir}/liblancedb_go.a"
-    fi
-  fi
-fi
-
-build_from_source() {
+if [[ "${FORCE}" -eq 0 && -f "${header_target}" && -f "${lib_target}" ]]; then
+  echo "==> reuse $(basename "${header_target}")"
+  echo "==> reuse $(basename "${lib_target}")"
+else
   if [[ "${platform}" == "windows" ]]; then
-    echo "source fallback is not yet supported on windows" >&2
-    return 1
+    echo "source build is not yet supported on windows" >&2
+    exit 1
   fi
 
+  command -v bash >/dev/null
   command -v git >/dev/null
   command -v cargo >/dev/null
   command -v rustup >/dev/null
   command -v cbindgen >/dev/null
 
-  local work_dir
   work_dir="$(mktemp -d)"
   trap 'rm -rf "${work_dir}"' EXIT
 
-  local source_dir="${work_dir}/lancedb-go"
-  echo "==> falling back to source build" >&2
-  git clone --depth 1 --branch "${VERSION}" "${LANCEDB_GO_SOURCE_URL}" "${source_dir}"
-
-  if [[ "${LANCEDB_RUST_SOURCE_URL}" != "https://github.com/lancedb/lancedb.git" ]]; then
-    python3 - <<'PY' "${source_dir}/rust/Cargo.toml" "${LANCEDB_RUST_SOURCE_URL}"
-import pathlib
-import sys
-
-path = pathlib.Path(sys.argv[1])
-target = sys.argv[2]
-old = "https://github.com/lancedb/lancedb.git"
-text = path.read_text()
-if old not in text:
-    raise SystemExit(f"{old} not found in {path}")
-path.write_text(text.replace(old, target))
-PY
-    echo "==> using rust source mirror: ${LANCEDB_RUST_SOURCE_URL}" >&2
-  fi
-
-  (cd "${source_dir}" && CARGO_NET_GIT_FETCH_WITH_CLI=true ./scripts/build-native.sh "${platform}" "${normalized_arch}")
-  cp "${source_dir}/include/lancedb.h" "${header_target}"
-
-  local built_name
-  if [[ "${STATIC}" -eq 1 ]]; then
-    built_name="liblancedb_go.a"
+  candidates=()
+  if [[ -n "${LANCEDB_GO_SOURCE_URL}" || -n "${LANCEDB_RUST_SOURCE_URL}" ]]; then
+    go_url="${LANCEDB_GO_SOURCE_URL:-https://github.com/lancedb/lancedb-go.git}"
+    rust_url="${LANCEDB_RUST_SOURCE_URL:-https://github.com/lancedb/lancedb.git}"
+    candidates+=("custom|${go_url}|${rust_url}")
   else
-    case "${platform}" in
-      darwin) built_name="liblancedb_go.dylib" ;;
-      linux) built_name="liblancedb_go.so" ;;
-      *) built_name="liblancedb_go.a" ;;
+    candidates+=("github|https://github.com/lancedb/lancedb-go.git|https://github.com/lancedb/lancedb.git")
+    case "${LANCEDB_ENABLE_SOURCE_MIRROR,,}" in
+      0|false|off|no) ;;
+      *) candidates+=("gitee mirror|https://gitee.com/hiparker/lancedb-go.git|https://gitee.com/mirrors/lancedb.git") ;;
     esac
   fi
 
-  if [[ ! -f "${source_dir}/lib/${platform_arch}/${built_name}" ]]; then
-    built_name="liblancedb_go.a"
+  build_ok=0
+  last_err=""
+  for candidate in "${candidates[@]}"; do
+    IFS='|' read -r label go_url rust_url <<< "${candidate}"
+    source_dir="${work_dir}/lancedb-go"
+    rm -rf "${source_dir}"
+
+    echo "==> building from source via ${label}" >&2
+    echo "==> lancedb-go source: ${go_url}" >&2
+    if ! git clone --depth 1 --branch "${VERSION}" "${go_url}" "${source_dir}"; then
+      last_err="clone failed from ${go_url}"
+      continue
+    fi
+
+    if [[ "${rust_url}" != "https://github.com/lancedb/lancedb.git" ]]; then
+      cargo_toml="${source_dir}/rust/Cargo.toml"
+      sed -i.bak "s#https://github.com/lancedb/lancedb.git#${rust_url}#g" "${cargo_toml}"
+      rm -f "${cargo_toml}.bak"
+      echo "==> using rust source mirror: ${rust_url}" >&2
+    fi
+
+    if ! (cd "${source_dir}" && CARGO_NET_GIT_FETCH_WITH_CLI=true ./scripts/build-native.sh "${platform}" "${normalized_arch}"); then
+      last_err="build failed via ${label}"
+      continue
+    fi
+
+    cp "${source_dir}/include/lancedb.h" "${header_target}"
+
+    if [[ ! -f "${source_dir}/lib/${platform_arch}/$(basename "${lib_target}")" ]]; then
+      lib_target="${lib_dir}/liblancedb_go.a"
+    fi
+
+    cp "${source_dir}/lib/${platform_arch}/$(basename "${lib_target}")" "${lib_target}"
+    build_ok=1
+    break
+  done
+
+  if [[ "${build_ok}" -ne 1 ]]; then
+    echo "${last_err:-source build failed}" >&2
+    exit 1
   fi
-
-  cp "${source_dir}/lib/${platform_arch}/${built_name}" "${lib_dir}/${built_name}"
-  lib_target="${lib_dir}/${built_name}"
-}
-
-if [[ "${release_failed}" -ne 0 ]]; then
-  build_from_source
 fi
 
 extra_ldflags=""

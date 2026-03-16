@@ -135,18 +135,23 @@ Invalid `vector_store.type` values now fail fast. `lancedb` no longer falls back
 
 ### LanceDB Setup
 
-The repository keeps LanceDB behind an explicit build tag for local Go workflows. A **pure Go** setup tool downloads the header and the current platform library into `~/.echo-fade-memory`—works on Windows, macOS, and Linux without shell scripts. The Docker image is built once with LanceDB support included, so Docker users do not need a separate LanceDB image.
+The repository keeps LanceDB behind an explicit build tag for local Go workflows. The setup tool now builds LanceDB from source by default, tries GitHub first, and can optionally fall back to Gitee mirrors. The Docker image is built once with LanceDB support included, so Docker users do not need a separate LanceDB image.
 
 ```bash
-# Download LanceDB runtime assets (cross-platform, no bash required)
+# Build LanceDB runtime assets from source
 go run ./cmd/setup-lancedb
 # or: make setup-lancedb
 
 # Optional: choose a different runtime home
 ECHO_FADE_MEMORY_HOME="$HOME/.echo-fade-memory" go run ./cmd/setup-lancedb
 
-# Optional: if GitHub release assets are unavailable, source fallback can use a mirror
-LANCEDB_RUST_SOURCE_URL="https://gitee.com/mirrors/lancedb.git" go run ./cmd/setup-lancedb --static
+# Optional: override source URLs explicitly
+LANCEDB_GO_SOURCE_URL="https://github.com/lancedb/lancedb-go.git" \
+LANCEDB_RUST_SOURCE_URL="https://github.com/lancedb/lancedb.git" \
+go run ./cmd/setup-lancedb --static
+
+# Optional: disable Gitee fallback and use GitHub only
+LANCEDB_ENABLE_SOURCE_MIRROR=0 go run ./cmd/setup-lancedb --static
 
 # Build with the real LanceDB adapter enabled
 make build-lancedb
@@ -157,7 +162,7 @@ make test-lancedb
 
 If `vector_store.type` is set to `lancedb` without building with `-tags lancedb`, the process returns a clear startup error instead of silently switching backends.
 
-When release assets cannot be downloaded, `cmd/setup-lancedb` now tries a source build fallback if `git`, `cargo`, `rustup`, and `cbindgen` are available locally. `LANCEDB_GO_SOURCE_URL` can override the `lancedb-go` source repository, and `LANCEDB_RUST_SOURCE_URL` can point the Rust dependency at a faster mirror such as Gitee.
+`cmd/setup-lancedb` now uses source-only mode. It requires `bash`, `git`, `cargo`, `rustup`, and `cbindgen` locally. By default it tries GitHub first and, when `LANCEDB_ENABLE_SOURCE_MIRROR` is not disabled, retries with Gitee mirrors. `LANCEDB_GO_SOURCE_URL` and `LANCEDB_RUST_SOURCE_URL` can override the source repositories explicitly.
 
 ---
 
