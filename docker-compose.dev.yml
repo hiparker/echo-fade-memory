@@ -8,6 +8,7 @@ networks:
 
 services:
   echo-fade-memory:
+    image: echo-fade-memory:latest
     build: .
     ports:
       - "8080:8080"
@@ -15,7 +16,7 @@ services:
       HOME: /root
       ECHO_FADE_MEMORY_HOME: /root/.echo-fade-memory
       ECHO_FADE_MEMORY_WORKSPACE: echo-fade-memory-dev
-      VECTOR_STORE_TYPE: ${VECTOR_STORE_TYPE:-lancedb}
+      VECTOR_STORE_TYPE: ${VECTOR_STORE_TYPE:-chromem}
       EMBEDDING_TYPE: ollama
       EMBEDDING_URL: http://host.docker.internal:11434
       EMBEDDING_MODEL: nomic-embed-text
