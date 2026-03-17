@@ -177,7 +177,7 @@ After full decay, not deletion but **abstraction**—keep outline, discard detai
 
 | Path            | Use case                                      | Implementation              |
 | --------------- | --------------------------------------------- | --------------------------- |
-| **Vector**      | Semantic similarity, conceptual association, "vaguely remember" | LanceDB + nomic-embed-text  |
+| **Vector**      | Semantic similarity, conceptual association, "vaguely remember" | chromem-go / local + nomic-embed-text  |
 | **BM25 keyword**| Exact term match, proper nouns, code/config   | Bleve full-text index       |
 | **Knowledge graph** | Entity-level query, "all about X", "user prefers Y" | Entity + relation index (Phase 2) |
 
@@ -227,7 +227,7 @@ Start with core engine, then split by scenario.
 - **Cross-platform**: Go cross-compilation for macOS (Intel/Apple Silicon), Windows, Linux; GitHub Releases multi-arch binaries; Homebrew/Scoop etc. later
 - Five layers: Write (storage format) → Time (decay schedule) → Transform (summary/keywords/residual rules) → Retrieve (three-way recall) → Present (CLI output)
 - **MVP text only**: No image blurring; text degradation first (0/7/30/90/180 day timeline)
-- Memory unit + **LanceDB** + **Bleve** + Ollama embedding
+- Memory unit + **chromem-go** (pure Go vector store) + **Bleve** + Ollama embedding
 - Decay algorithm: Align with timeline; configurable λ, reinforcement coefficients
 - Recall: Vector + BM25; when clarity very low (e.g., 180 days) **associative recall** only, no direct key lookup
 
@@ -260,7 +260,7 @@ Start with core engine, then split by scenario.
 | Performance   | Strong for storage-intensive apps; GC friendly for this scenario     |
 | Dev efficiency| Faster iteration than Rust/C++; open source needs quick validation  |
 | Deployment    | Single binary, no runtime dependency; run out of the box              |
-| Ecosystem     | LanceDB has [lancedb-go](https://pkg.go.dev/github.com/lancedb/lancedb-go) SDK |
+| Ecosystem     | chromem-go (pure Go embedded vector DB), Bleve, modernc.org/sqlite |
 | Fit           | Storage + time decay + vector retrieval; Go sufficient               |
 
 > For extreme-performance low-level engine, consider Rust; for product and open source, Go offers best cost-performance.
@@ -269,7 +269,7 @@ Start with core engine, then split by scenario.
 
 | Component   | Choice                         | Config                    |
 | ----------- | ------------------------------ | ------------------------- |
-| Vector store| **local / LanceDB / Milvus**   | `local` default; LanceDB opt-in via build tag; Milvus for external deployment |
+| Vector store| **local / chromem-go / Milvus** | `local` default; `chromem` for embedded persistent store (Docker default); Milvus for external deployment |
 | BM25/Full-text | **Bleve**                    | BM25 scoring, RRF fusion, multilingual tokenization |
 | Embedding   | **Ollama + nomic-embed-text**  | Local inference, 768 dim  |
 
@@ -300,14 +300,13 @@ Start with core engine, then split by scenario.
 
 ```text
 ~/.echo-fade-memory/
-├── include/                    # Shared LanceDB headers
-├── lib/<platform_arch>/        # Shared LanceDB native libraries
 └── workspaces/<workspace-id>/
     └── data/
-        ├── vectors.json        # Default local vectors
-        ├── lancedb/            # Optional LanceDB vectors
-        ├── bleve/              # Full-text index
-        └── memories.db         # SQLite memory metadata
+        ├── vector/
+        │   ├── local/vectors.json  # Default local vectors
+        │   └── chromem/            # chromem-go persistent store
+        ├── bleve/                  # Full-text index
+        └── memories.db             # SQLite memory metadata
 ```
 
 Backup: `tar -czvf backup.tar.gz ~/.echo-fade-memory/workspaces/<workspace-id>/data`; migrate: extract into a new runtime home.

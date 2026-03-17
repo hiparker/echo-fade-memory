@@ -26,7 +26,7 @@ An **AI memory middleware** built for forgetting. It helps agents remember, deca
 
 ## 概述
 
-- **遗忘即特性**：不是单纯“存得更多”，而是让记忆按生命周期演化。
+- **遗忘即特性**：不是单纯"存得更多"，而是让记忆按生命周期演化。
 - **可解释召回**：召回结果不仅有内容，还会返回 `score`、`strength`、`freshness`、`why_recalled`、`needs_grounding` 等字段。
 - **多形态记忆**：同一条记忆可同时拥有原文、摘要、embedding、残留内容、来源引用和生命周期状态。
 - **基础设施层定位**：上层 `SKILL` 或 agent framework 负责策略编排，本项目负责底层记忆执行。
@@ -75,7 +75,7 @@ make build
 
 ```bash
 # 方式一：先启动外部 Ollama 容器，再启动 echo-fade-memory
-# 默认 lancedb；需用 local 验证时加 VECTOR_STORE_TYPE=local
+# 默认 chromem（纯 Go 嵌入式向量库）
 ./scripts/start-ollama-embedding.sh
 docker compose up --build
 
@@ -93,7 +93,7 @@ Copy `config.example.json` to `config.json` and customize:
 |---------|-----|-------------|
 | embedding | type, url, model, dimensions, api_key, base_url | `type`: ollama, openai, gemini; `url` for ollama; `api_key` for openai/gemini |
 | decay | tau, alpha, epsilon | strength = 1/(1+(t/τ)^α) × reinforce; tau=halflife, alpha=shape |
-| vector_store | type, path, milvus_host, milvus_port, milvus_db | `local`, `lancedb` (Docker default), `milvus` |
+| vector_store | type, path, milvus_host, milvus_port, milvus_db | `local`, `chromem` (Docker default), `milvus` |
 | storage | type, path | `sqlite` (default), `postgres`, `mysql` |
 
 Env vars: `EMBEDDING_TYPE`, `EMBEDDING_URL`, `EMBEDDING_MODEL`, `EMBEDDING_API_KEY`, `ECHO_FADE_MEMORY_HOME`, `ECHO_FADE_MEMORY_WORKSPACE`, etc.
@@ -110,13 +110,12 @@ By default the project uses a global runtime home:
 
 ```text
 ~/.echo-fade-memory/
-  include/                    # LanceDB headers
-  lib/<platform_arch>/        # LanceDB native libraries
   workspaces/<workspace-id>/
     data/
       memories.db             # SQLite metadata
-      vectors.json            # local vector backend
-      lancedb/                # LanceDB data directory
+      vector/
+        local/vectors.json    # local vector backend
+        chromem/              # chromem-go persistent data
       bleve/                  # full-text index
 ```
 
@@ -127,42 +126,11 @@ By default the project uses a global runtime home:
 
 ### Vector Backends
 
-- `local`: for `make build` / `make test` verification; stores vectors in `vectors.json`.
-- `lancedb`: default for Docker; real LanceDB adapter. Local Go builds are opt-in via `-tags lancedb`.
+- `local`: pure Go, stores vectors in `vectors.json`; default for `make build` / `make test`.
+- `chromem`: pure Go embedded vector database ([chromem-go](https://github.com/philippgille/chromem-go)); default for Docker. Persistent, no external service needed.
 - `milvus`: external service backend for larger or remote deployments.
 
-Invalid `vector_store.type` values now fail fast. `lancedb` no longer falls back to `local`.
-
-### LanceDB Setup
-
-The repository keeps LanceDB behind an explicit build tag for local Go workflows. The setup tool now builds LanceDB from source by default, tries GitHub first, and can optionally fall back to Gitee mirrors. The Docker image is built once with LanceDB support included, so Docker users do not need a separate LanceDB image.
-
-```bash
-# Build LanceDB runtime assets from source
-go run ./cmd/setup-lancedb
-# or: make setup-lancedb
-
-# Optional: choose a different runtime home
-ECHO_FADE_MEMORY_HOME="$HOME/.echo-fade-memory" go run ./cmd/setup-lancedb
-
-# Optional: override source URLs explicitly
-LANCEDB_GO_SOURCE_URL="https://github.com/lancedb/lancedb-go.git" \
-LANCEDB_RUST_SOURCE_URL="https://github.com/lancedb/lancedb.git" \
-go run ./cmd/setup-lancedb --static
-
-# Optional: disable Gitee fallback and use GitHub only
-LANCEDB_ENABLE_SOURCE_MIRROR=0 go run ./cmd/setup-lancedb --static
-
-# Build with the real LanceDB adapter enabled
-make build-lancedb
-
-# Optional: run the tagged test suite the same way
-make test-lancedb
-```
-
-If `vector_store.type` is set to `lancedb` without building with `-tags lancedb`, the process returns a clear startup error instead of silently switching backends.
-
-`cmd/setup-lancedb` now uses source-only mode. It requires `bash`, `git`, `cargo`, `rustup`, and `cbindgen` locally. By default it tries GitHub first and, when `LANCEDB_ENABLE_SOURCE_MIRROR` is not disabled, retries with Gitee mirrors. `LANCEDB_GO_SOURCE_URL` and `LANCEDB_RUST_SOURCE_URL` can override the source repositories explicitly.
+Invalid `vector_store.type` values fail fast at startup.
 
 ---
 

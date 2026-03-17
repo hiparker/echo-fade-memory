@@ -4,7 +4,7 @@
 
 | Phase | 规划内容 | 状态 | 说明 |
 |-------|----------|------|------|
-| Phase 1 | 核心引擎 | 已完成 | 单一 `/v1/memories` 契约与正式 schema 已落地；默认测试矩阵已通过，LanceDB 不在本轮重复复测 |
+| Phase 1 | 核心引擎 | 已完成 | 单一 `/v1/memories` 契约与正式 schema 已落地；默认测试矩阵已通过 |
 | Phase 2 | 知识图谱 + LLM 集成 | 约 20% | HTTP API 已有，KG 未做 |
 | Phase 3 | 人格涌现 | 0% | 未开始 |
 
@@ -54,7 +54,7 @@
 
 | 规划 | 实现 | 说明 |
 |------|------|------|
-| 向量检索 | ✅ | 默认 local JSON；已接入可选 LanceDB / Milvus 后端 |
+| 向量检索 | ✅ | 默认 local JSON；已接入 chromem-go（纯 Go 嵌入式向量库）/ Milvus 后端 |
 | BM25 关键词 | ✅ | Bleve |
 | 知识图谱 | ❌ | 未实现 |
 | RRF 融合 | ✅ | 向量 + BM25 融合 |
@@ -70,7 +70,7 @@
 | 规划 | 实现 | 说明 |
 |------|------|------|
 | Go | ✅ | |
-| LanceDB | ✅ | 真实适配器已接入；默认通过 `lancedb` build tag + CGO 原生库显式启用 |
+| chromem-go | ✅ | 纯 Go 嵌入式向量库，替代 LanceDB，零 CGO |
 | Local vector store | ✅ | 默认后端，纯 Go，本地开发与测试基线 |
 | Milvus | ✅ | 外部服务化后端 |
 | Bleve | ✅ | |
@@ -84,7 +84,7 @@
 | 规划 | 实现 | 说明 |
 |------|------|------|
 | 直接运行 | ✅ | 单二进制 |
-| Docker | ✅ | Dockerfile + docker-compose |
+| Docker | ✅ | Dockerfile + docker-compose，纯 Go 构建，秒级镜像 |
 | 存储可移植 | ✅ | DATA_PATH |
 | CLI | ✅ | remember, recall, reinforce, ground, forget, decay |
 | HTTP API | ✅ | 唯一公开契约为 `/v1/memories` 资源式 API |
@@ -110,7 +110,7 @@
 
 ## 8. 与规划的差异
 
-1. **向量存储**：从“仅规划 LanceDB”调整为三后端策略：默认 `local`，可选真实 `lancedb`，以及外部 `milvus`
+1. **向量存储**：从最初规划的 LanceDB 调整为三后端策略：默认 `local`，`chromem`（纯 Go 嵌入式），以及外部 `milvus`
 2. **衰减公式**：规划多因子（linkage、孤立惩罚），实现为简化 strength 公式
 3. **Residual**：规划摘要/关键词/情感；当前已实现规则式摘要/关键词/片段，尚非结构化情感抽取
 4. **记忆图**：规划有向加权图，实现无 linkage

@@ -20,7 +20,7 @@ echo-fade-memory/
 │   │   ├── memstore/       # MemoryStore 接口
 │   │   ├── store/          # SQL/Bleve 存储实现
 │   │   ├── storefactory/   # 后端装配
-│   │   └── vector/         # Vector store 实现 (local/lancedb/milvus)
+│   │   └── vector/         # Vector store 实现 (local/chromem/milvus)
 │   ├── test/               # 自动化测试 (api/cli/config/engine/testutil)
 │   └── portal/             # 入口层
 │       └── api/            # HTTP API
@@ -38,7 +38,7 @@ echo-fade-memory/
 | **port/memstore** | 记忆元数据端口 | MemoryStore 接口 |
 | **port/store** | 存储实现 | SQL metadata、Bleve index |
 | **port/storefactory** | 装配 | 根据配置选择后端 |
-| **port/vector** | 向量后端 | local、LanceDB、Milvus |
+| **port/vector** | 向量后端 | local、chromem-go、Milvus |
 | **port/embedding** | 嵌入端口 | Provider 接口及实现 (Ollama, OpenAI, Gemini) |
 | **test** | 测试 | API、CLI、config、engine 与 testutil |
 | **portal/api** | HTTP 入口 | REST API Server |

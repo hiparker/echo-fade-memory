@@ -185,7 +185,7 @@ clarity = f(time_decay, access_reinforcement, linkage_strength, emotional_weight
 
 | 路径           | 适用场景                     | 实现                         |
 | ------------ | ------------------------ | -------------------------- |
-| **向量检索**     | 语义相似、概念联想、「好像记得」         | LanceDB + nomic-embed-text |
+| **向量检索**     | 语义相似、概念联想、「好像记得」         | chromem-go / local + nomic-embed-text |
 | **BM25 关键词** | 精确词匹配、专有名词、代码/配置         | Bleve 全文索引                 |
 | **知识图谱**     | 实体级查询、「关于 X 的所有」「用户偏好 Y」 | 实体 + 关系索引（Phase 2）         |
 
@@ -235,7 +235,7 @@ recall(query) =
 - **跨平台**：Go 交叉编译支持 macOS (Intel/Apple Silicon)、Windows、Linux；GitHub Releases 多架构二进制；Homebrew/Scoop 等包管理可后续接入
 - 五层落地：写入层（存储格式）→ 时间层（衰减调度）→ 变形层（摘要/关键词/残影规则）→ 检索层（三路召回）→ 展示层（CLI 输出）
 - **MVP 仅文本**：不做图片变糊，先做文本退化（0/7/30/90/180 天时间线）
-- 记忆单元 + **LanceDB** + **Bleve** + Ollama 嵌入
+- 记忆单元 + **chromem-go**（纯 Go 向量存储）+ **Bleve** + Ollama 嵌入
 - 衰减算法：对齐上述时间线，可配置 λ、强化系数
 - 召回：向量 + BM25；clarity 极低时（如 180 天）仅支持**联想召回**，不可直接 key 查
 
@@ -268,7 +268,7 @@ recall(query) =
 | 性能   | 存储密集型应用表现好，GC 对此类场景友好                                                        |
 | 开发效率 | 相比 Rust/C++ 迭代快，开源项目需快速验证                                                    |
 | 部署   | 单二进制，无运行时依赖，用户拿来即跑                                                           |
-| 生态   | LanceDB 有 [lancedb-go](https://pkg.go.dev/github.com/lancedb/lancedb-go) SDK |
+| 生态   | chromem-go（纯 Go 嵌入式向量库）、Bleve、modernc.org/sqlite |
 | 场景匹配 | 存储 + 时间衰减 + 向量检索，Go 足够                                                       |
 
 > 若追求极致性能的底层引擎可考虑 Rust；做产品、做开源，Go 性价比更高。
@@ -277,7 +277,7 @@ recall(query) =
 
 | 组件      | 选型                            | 配置                   |
 | ------- | ----------------------------- | -------------------- |
-| 向量存储    | **local / LanceDB / Milvus** | `local` 默认；LanceDB 通过 build tag 显式启用；Milvus 用于外部部署 |
+| 向量存储    | **local / chromem-go / Milvus** | `local` 默认；`chromem` 纯 Go 嵌入式持久化（Docker 默认）；Milvus 用于外部部署 |
 | BM25/全文 | **Bleve**                     | BM25 评分、RRF 融合、多语言分词 |
 | 嵌入      | **Ollama + nomic-embed-text** | 本地推理，768 维           |
 
@@ -308,14 +308,13 @@ recall(query) =
 
 ```text
 ~/.echo-fade-memory/
-├── include/                    # 共享 LanceDB 头文件
-├── lib/<platform_arch>/        # 共享 LanceDB 原生库
 └── workspaces/<workspace-id>/
     └── data/
-        ├── vectors.json        # 默认 local 向量
-        ├── lancedb/            # 可选 LanceDB 向量目录
-        ├── bleve/              # 全文索引
-        └── memories.db         # SQLite 记忆元数据
+        ├── vector/
+        │   ├── local/vectors.json  # 默认 local 向量
+        │   └── chromem/            # chromem-go 持久化向量目录
+        ├── bleve/                  # 全文索引
+        └── memories.db             # SQLite 记忆元数据
 ```
 
 备份：`tar -czvf backup.tar.gz ~/.echo-fade-memory/workspaces/<workspace-id>/data`；迁移：解压到新的 runtime home 即可。
