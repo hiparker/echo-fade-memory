@@ -1,6 +1,5 @@
 /echo-fade-memory
 /echo-fade-memory-*
-/setup-lancedb
 *.exe
 /data/
 *.bleve
@@ -8,3 +7,4 @@
 config.json
 # Keep go.sum for reproducible builds
 # go.sum
+
