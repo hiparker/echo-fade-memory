@@ -229,10 +229,13 @@ func resolvePaths(cfg *Config) {
 	cfg.VectorStore.Path = expandUser(strings.TrimSpace(cfg.VectorStore.Path))
 	cfg.Storage.Path = expandUser(strings.TrimSpace(cfg.Storage.Path))
 	if cfg.VectorStore.Path == "" {
-		if cfg.VectorStore.Type == "lancedb" {
-			cfg.VectorStore.Path = filepath.Join(cfg.DataPath, "lancedb")
-		} else {
-			cfg.VectorStore.Path = filepath.Join(cfg.DataPath, "vectors.json")
+		switch cfg.VectorStore.Type {
+		case "chromem":
+			cfg.VectorStore.Path = filepath.Join(cfg.DataPath, "vector", "chromem")
+		case "local":
+			cfg.VectorStore.Path = filepath.Join(cfg.DataPath, "vector", "local", "vectors.json")
+		default:
+			cfg.VectorStore.Path = filepath.Join(cfg.DataPath, "vector", "local", "vectors.json")
 		}
 	}
 	if cfg.Storage.Path == "" {
@@ -322,7 +325,7 @@ func userHomeDir(fallback string) string {
 
 func validate(cfg *Config) error {
 	switch cfg.VectorStore.Type {
-	case "", "local", "lancedb", "milvus":
+	case "", "local", "chromem", "milvus":
 	default:
 		return &ConfigError{Field: "vector_store.type", Value: cfg.VectorStore.Type}
 	}
@@ -347,10 +350,11 @@ func (c *Config) VectorPath() string {
 	if c.VectorStore.Path != "" {
 		return c.VectorStore.Path
 	}
-	if strings.ToLower(strings.TrimSpace(c.VectorStore.Type)) == "lancedb" {
-		return filepath.Join(c.DataPath, "lancedb")
+	switch strings.ToLower(strings.TrimSpace(c.VectorStore.Type)) {
+	case "chromem":
+		return filepath.Join(c.DataPath, "vector", "chromem")
 	}
-	return filepath.Join(c.DataPath, "vectors.json")
+	return filepath.Join(c.DataPath, "vector", "local", "vectors.json")
 }
 
 // BlevePath returns path to Bleve index.

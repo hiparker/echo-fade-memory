@@ -45,7 +45,7 @@ func TestLoadMissingConfigFallsBackToDefaults(t *testing.T) {
 	if cfg.DataPath != wantDataPath {
 		t.Fatalf("DataPath = %q, want %q", cfg.DataPath, wantDataPath)
 	}
-	if got, want := cfg.VectorPath(), filepath.Join(cfg.DataPath, "vectors.json"); got != want {
+	if got, want := cfg.VectorPath(), filepath.Join(cfg.DataPath, "vector", "local", "vectors.json"); got != want {
 		t.Fatalf("VectorPath = %q, want %q", got, want)
 	}
 	if got, want := cfg.SQLitePath(), filepath.Join(cfg.DataPath, "memories.db"); got != want {
@@ -78,7 +78,7 @@ func TestLoadRejectsInvalidVectorStoreType(t *testing.T) {
 	}
 }
 
-func TestLoadUsesLanceDBDefaultPath(t *testing.T) {
+func TestLoadUsesChromemDefaultPath(t *testing.T) {
 	home := t.TempDir()
 	workspace := filepath.Join(t.TempDir(), "runtime-workspace")
 	if err := os.MkdirAll(workspace, 0755); err != nil {
@@ -98,7 +98,7 @@ func TestLoadUsesLanceDBDefaultPath(t *testing.T) {
 
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.json")
-	data := []byte(`{"vector_store":{"type":"lancedb"}}`)
+	data := []byte(`{"vector_store":{"type":"chromem"}}`)
 	if err := os.WriteFile(path, data, 0644); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
@@ -107,7 +107,7 @@ func TestLoadUsesLanceDBDefaultPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load returned error: %v", err)
 	}
-	if got, want := cfg.VectorPath(), filepath.Join(cfg.DataPath, "lancedb"); got != want {
+	if got, want := cfg.VectorPath(), filepath.Join(cfg.DataPath, "vector", "chromem"); got != want {
 		t.Fatalf("VectorPath = %q, want %q", got, want)
 	}
 }
