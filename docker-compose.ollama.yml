@@ -4,6 +4,7 @@ version: "3.8"
 services:
   ollama-nomic-embed-text:
     image: ollama/ollama
+    restart: unless-stopped
     ports:
       - "11434:11434"
     volumes:
@@ -13,6 +14,7 @@ services:
   echo-fade-memory:
     image: echo-fade-memory:latest
     build: .
+    restart: unless-stopped
     depends_on:
       - ollama-nomic-embed-text
     ports:

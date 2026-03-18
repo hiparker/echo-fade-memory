@@ -10,6 +10,7 @@ services:
   echo-fade-memory:
     image: echo-fade-memory:latest
     build: .
+    restart: unless-stopped
     ports:
       - "8080:8080"
     environment:
