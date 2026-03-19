@@ -1,7 +1,8 @@
 #!/bin/sh
 set -eu
 
-BASE_URL="${EFM_BASE_URL:-http://127.0.0.1:8080}"
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+BASE_URL="${EFM_BASE_URL:-$($SCRIPT_DIR/_resolve_base_url.py)}"
 QUERY="${1:-}"
 K="${2:-5}"
 
@@ -17,8 +18,17 @@ import urllib.parse
 import urllib.request
 
 base_url, query, k = sys.argv[1], sys.argv[2], sys.argv[3]
-url = f"{base_url.rstrip('/')}/v1/memories?q={urllib.parse.quote(query)}&k={urllib.parse.quote(k)}"
+
+params = urllib.parse.urlencode({
+    "query": query,
+    "limit": k,
+})
+url = f"{base_url.rstrip('/')}/v1/memories/recall?{params}"
 with urllib.request.urlopen(url, timeout=15) as resp:
     data = json.loads(resp.read().decode("utf-8"))
-print(json.dumps(data, indent=2, ensure_ascii=False))
+
+if isinstance(data, dict) and "results" in data:
+    print(json.dumps(data, indent=2, ensure_ascii=False))
+else:
+    print(json.dumps({"results": data}, indent=2, ensure_ascii=False))
 PY

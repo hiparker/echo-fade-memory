@@ -8,13 +8,25 @@
 const REMINDER_CONTENT = `
 ## Echo Fade Memory Reminder
 
+Use echo-fade-memory as a natural long-term memory layer in OpenClaw.
+
+Prefer this workflow when:
+- the user says "记住这个" / "remember this"
+- the user asks about something said before
+- a durable preference, constraint, decision, correction, or workaround appears
+- the answer clearly depends on prior session context
+
 Before answering:
 - Recall relevant project memory first
-- Store durable user preferences, decisions, and corrections
-- Reinforce memories that proved useful
 - Ground memories if they look fuzzy or uncertain
 
-Use the local service workflow from the echo-fade-memory skill package.
+During work:
+- Store durable user preferences, decisions, and corrections
+- Reinforce memories that proved useful
+- Forget memories when the user explicitly asks
+
+If 127.0.0.1:8080 is unreachable, try:
+- export EFM_BASE_URL=http://host.docker.internal:8080
 `.trim();
 
 const handler = async (event) => {

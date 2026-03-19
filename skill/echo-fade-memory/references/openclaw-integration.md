@@ -43,10 +43,16 @@ On `agent:bootstrap`, the hook injects a short reminder telling the agent to:
 
 ## Runtime Assumption
 
-The hook assumes the service is reachable at:
+The hook defaults to:
 
 ```bash
 http://127.0.0.1:8080
+```
+
+In containerized OpenClaw environments, this may be unreachable. In that case, use:
+
+```bash
+export EFM_BASE_URL=http://host.docker.internal:8080
 ```
 
 You can adapt the reminder or your environment to a different URL via `EFM_BASE_URL`.

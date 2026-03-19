@@ -1,6 +1,7 @@
 #!/bin/sh
 set -eu
 
-BASE_URL="${EFM_BASE_URL:-http://127.0.0.1:8080}"
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+BASE_URL="${EFM_BASE_URL:-$($SCRIPT_DIR/_resolve_base_url.py)}"
 
 curl -fsS "${BASE_URL%/}/v1/healthz"
