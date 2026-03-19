@@ -106,3 +106,18 @@ func (vs *Store) Remove(id string) error {
 	delete(vs.vectors, id)
 	return vs.save()
 }
+
+// VectorCount returns the number of stored vectors.
+func (vs *Store) VectorCount() int {
+	vs.mu.RLock()
+	defer vs.mu.RUnlock()
+	return len(vs.vectors)
+}
+
+// HasVectorID checks whether a vector exists for the given id.
+func (vs *Store) HasVectorID(id string) bool {
+	vs.mu.RLock()
+	defer vs.mu.RUnlock()
+	_, ok := vs.vectors[id]
+	return ok
+}

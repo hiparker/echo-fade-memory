@@ -63,12 +63,19 @@ make build
 
 # HTTP API
 ./echo-fade-memory serve
+# HTTP API (custom runtime home for local debugging)
+./echo-fade-memory serve --workdir /Users/system/.echo-fade-memory --workspace debug-local
+# HTTP API (custom runtime + port)
+./echo-fade-memory serve --workdir /Users/system/.echo-fade-memory --workspace debug-local --port 9090
 # POST   /v1/memories {"content":"...", "memory_type":"project", "source_refs":[...]}
 # GET    /v1/memories?q=query
 # POST   /v1/memories/<id>/reinforce
 # GET    /v1/memories/<id>/ground
 # POST   /v1/memories/explain {"query":"..."}
 # POST   /v1/memories/decay
+# GET    /v1/stats/overview?window_days=30
+# GET    /v1/stats/integrity?sample_size=200
+# Dashboard: GET /dashboard
 ```
 
 **Docker**:
@@ -124,6 +131,15 @@ By default the project uses a global runtime home:
 - `DATA_PATH` still wins if you want a fully custom data directory.
 - Docker compose files bind-mount `${HOME}/.echo-fade-memory` to `/root/.echo-fade-memory` and set a stable `ECHO_FADE_MEMORY_WORKSPACE`.
 
+`serve` also supports runtime overrides via CLI flags (equivalent to env vars):
+
+```bash
+./echo-fade-memory serve --workdir /Users/system/.echo-fade-memory
+./echo-fade-memory serve --workdir /Users/system/.echo-fade-memory --workspace debug-local
+./echo-fade-memory serve --workdir /Users/system/.echo-fade-memory --workspace debug-local --port 9090
+./echo-fade-memory serve --help
+```
+
 ### Vector Backends
 
 - `local`: pure Go, stores vectors in `vectors.json`; default for `make build` / `make test`.
@@ -162,3 +178,17 @@ Phase 1 exposes a single public HTTP contract:
 - `GET /v1/memories/:id/versions`
 - `GET /v1/healthz`
 - `GET /v1/readyz`
+- `GET /v1/stats/overview?window_days=30`
+- `GET /v1/stats/integrity?sample_size=200`
+
+## Dashboard Snapshot
+
+`/dashboard` now has two tabs:
+
+- `Overview`: total memories, 30-day new memories trend, lifecycle/decay/type distributions, quality indicators, and SQL/vector lightweight integrity checks.
+- `Workbench`: existing recall/explain/decay operations for manual diagnosis and query verification.
+
+Integrity check mode defaults to lightweight:
+
+- compare SQL total vs vector total when backend supports count;
+- run sampled ID checks (default `sample_size=200`) when backend supports ID existence checks.

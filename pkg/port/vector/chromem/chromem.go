@@ -69,6 +69,11 @@ func (s *Store) Remove(id string) error {
 	return s.coll.Delete(context.Background(), nil, nil, id)
 }
 
+// VectorCount returns number of vectors in collection.
+func (s *Store) VectorCount() int {
+	return s.coll.Count()
+}
+
 // Compact triggers a GC to release memory after bulk operations.
 func (s *Store) Close() error {
 	runtime.GC()

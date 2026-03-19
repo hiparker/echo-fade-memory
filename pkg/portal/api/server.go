@@ -112,6 +112,18 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.handleDecay(w, r)
+	case "/v1/stats/overview":
+		if r.Method != http.MethodGet {
+			writeJSONError(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		s.handleStatsOverview(w, r)
+	case "/v1/stats/integrity":
+		if r.Method != http.MethodGet {
+			writeJSONError(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		s.handleStatsIntegrity(w, r)
 	default:
 		if strings.HasPrefix(r.URL.Path, "/v1/memories/") {
 			s.handleMemorySubresource(w, r)
@@ -314,6 +326,74 @@ func (s *Server) handleExplain(w http.ResponseWriter, r *http.Request) {
 		"accepted": items,
 		"filtered": result.Filtered,
 	})
+}
+
+func (s *Server) handleStatsOverview(w http.ResponseWriter, r *http.Request) {
+	windowDays := 30
+	topK := 10
+	riskWClarity := 0.7
+	riskWIdle := 0.3
+	if v := strings.TrimSpace(r.URL.Query().Get("window_days")); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n <= 0 {
+			writeJSONError(w, "invalid window_days", http.StatusBadRequest)
+			return
+		}
+		windowDays = n
+	}
+	if v := strings.TrimSpace(r.URL.Query().Get("top_k")); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n <= 0 {
+			writeJSONError(w, "invalid top_k", http.StatusBadRequest)
+			return
+		}
+		topK = n
+	}
+	if v := strings.TrimSpace(r.URL.Query().Get("risk_w_clarity")); v != "" {
+		n, err := strconv.ParseFloat(v, 64)
+		if err != nil || n < 0 {
+			writeJSONError(w, "invalid risk_w_clarity", http.StatusBadRequest)
+			return
+		}
+		riskWClarity = n
+	}
+	if v := strings.TrimSpace(r.URL.Query().Get("risk_w_idle")); v != "" {
+		n, err := strconv.ParseFloat(v, 64)
+		if err != nil || n < 0 {
+			writeJSONError(w, "invalid risk_w_idle", http.StatusBadRequest)
+			return
+		}
+		riskWIdle = n
+	}
+	stats, err := s.engine.StatsOverviewWithOptions(r.Context(), engine.OverviewOptions{
+		WindowDays:    windowDays,
+		TopK:          topK,
+		RiskWClarity:  riskWClarity,
+		RiskWIdleDays: riskWIdle,
+	})
+	if err != nil {
+		writeJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	_ = json.NewEncoder(w).Encode(stats)
+}
+
+func (s *Server) handleStatsIntegrity(w http.ResponseWriter, r *http.Request) {
+	sampleSize := 200
+	if v := strings.TrimSpace(r.URL.Query().Get("sample_size")); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n <= 0 {
+			writeJSONError(w, "invalid sample_size", http.StatusBadRequest)
+			return
+		}
+		sampleSize = n
+	}
+	stats, err := s.engine.StatsIntegrity(r.Context(), sampleSize)
+	if err != nil {
+		writeJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	_ = json.NewEncoder(w).Encode(stats)
 }
 
 func (s *Server) handleMemorySubresource(w http.ResponseWriter, r *http.Request) {
