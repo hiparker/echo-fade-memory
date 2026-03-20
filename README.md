@@ -183,10 +183,23 @@ Phase 1 exposes a single public HTTP contract:
 
 ## Dashboard Snapshot
 
-`/dashboard` now has two tabs:
+`/dashboard` now has three tabs:
 
-- `Overview`: total memories, 30-day new memories trend, lifecycle/decay/type distributions, quality indicators, and SQL/vector lightweight integrity checks.
-- `Workbench`: existing recall/explain/decay operations for manual diagnosis and query verification.
+- `Overview`: core KPIs, health summary, and lightweight SQL/vector integrity checks.
+- `Detail`: Top-N lists (new/risk/access), distributions, and created trend chart.
+- `Workbench`: recall/explain/decay operations for manual diagnosis and query verification.
+
+### Overview
+
+![Overview](images/overview.png)
+
+### Detail
+
+![Detail](images/detail.png)
+
+### Workbench
+
+![Workbench](images/workbench.png)
 
 Integrity check mode defaults to lightweight:
 
