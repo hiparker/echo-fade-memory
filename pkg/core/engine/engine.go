@@ -11,16 +11,21 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/hiparker/echo-fade-memory/pkg/basic/util/safe"
 	"github.com/hiparker/echo-fade-memory/pkg/config"
 	"github.com/hiparker/echo-fade-memory/pkg/core/decay"
+	"github.com/hiparker/echo-fade-memory/pkg/core/entity"
 	"github.com/hiparker/echo-fade-memory/pkg/core/model"
 	"github.com/hiparker/echo-fade-memory/pkg/core/transform"
 	"github.com/hiparker/echo-fade-memory/pkg/port/embedding"
+	"github.com/hiparker/echo-fade-memory/pkg/port/imageproc"
+	"github.com/hiparker/echo-fade-memory/pkg/port/imageproc/basic"
+	"github.com/hiparker/echo-fade-memory/pkg/port/imagestore"
+	"github.com/hiparker/echo-fade-memory/pkg/port/kgstore"
 	"github.com/hiparker/echo-fade-memory/pkg/port/memstore"
 	"github.com/hiparker/echo-fade-memory/pkg/port/store"
 	"github.com/hiparker/echo-fade-memory/pkg/port/storefactory"
-	"github.com/google/uuid"
 )
 
 // Engine is the core memory engine.
@@ -30,8 +35,14 @@ type Engine struct {
 	vector        store.VectorStore
 	bleve         *store.BleveStore
 	embed         embedding.Provider
+	kg            kgstore.Store
+	images        imagestore.Store
+	imageVector   store.VectorStore
+	imageBleve    *store.BleveStore
+	imageAnalyzer imageproc.Analyzer
 	decay         decay.Params
 	mu            sync.RWMutex
+	decayMu       sync.Mutex
 	lastDecayAt   time.Time
 	decayCacheTTL time.Duration
 }
@@ -81,7 +92,53 @@ func New(cfg *config.Config) (*Engine, error) {
 		mem.Close()
 		return nil, err
 	}
-	return NewWithDeps(cfg, mem, vector, bleve, embed), nil
+
+	kg, err := storefactory.NewKGStore(cfg)
+	if err != nil {
+		mem.Close()
+		if closer, ok := vector.(interface{ Close() error }); ok {
+			_ = closer.Close()
+		}
+		_ = bleve.Close()
+		return nil, err
+	}
+
+	images, err := storefactory.NewImageStore(cfg)
+	if err != nil {
+		mem.Close()
+		if closer, ok := vector.(interface{ Close() error }); ok {
+			_ = closer.Close()
+		}
+		_ = bleve.Close()
+		_ = kg.Close()
+		return nil, err
+	}
+	imageVector, err := storefactory.NewImageVectorStore(cfg)
+	if err != nil {
+		mem.Close()
+		if closer, ok := vector.(interface{ Close() error }); ok {
+			_ = closer.Close()
+		}
+		_ = bleve.Close()
+		_ = kg.Close()
+		_ = images.Close()
+		return nil, err
+	}
+	imageBleve, err := store.OpenOrCreateBleve(cfg.ImageBlevePath())
+	if err != nil {
+		mem.Close()
+		if closer, ok := vector.(interface{ Close() error }); ok {
+			_ = closer.Close()
+		}
+		if closer, ok := imageVector.(interface{ Close() error }); ok {
+			_ = closer.Close()
+		}
+		_ = bleve.Close()
+		_ = kg.Close()
+		_ = images.Close()
+		return nil, err
+	}
+	return NewWithDepsFull(cfg, mem, vector, bleve, embed, kg, images, imageVector, imageBleve, basic.New()), nil
 }
 
 // NewWithDeps creates an Engine from explicit dependencies.
@@ -92,6 +149,34 @@ func NewWithDeps(
 	vector store.VectorStore,
 	bleve *store.BleveStore,
 	embed embedding.Provider,
+) *Engine {
+	return NewWithDepsAndKG(cfg, mem, vector, bleve, embed, nil)
+}
+
+// NewWithDepsAndKG creates an Engine with an optional graph store dependency.
+func NewWithDepsAndKG(
+	cfg *config.Config,
+	mem memstore.MemoryStore,
+	vector store.VectorStore,
+	bleve *store.BleveStore,
+	embed embedding.Provider,
+	kg kgstore.Store,
+) *Engine {
+	return NewWithDepsFull(cfg, mem, vector, bleve, embed, kg, nil, nil, nil, nil)
+}
+
+// NewWithDepsFull creates an Engine with optional graph and image runtime dependencies.
+func NewWithDepsFull(
+	cfg *config.Config,
+	mem memstore.MemoryStore,
+	vector store.VectorStore,
+	bleve *store.BleveStore,
+	embed embedding.Provider,
+	kg kgstore.Store,
+	images imagestore.Store,
+	imageVector store.VectorStore,
+	imageBleve *store.BleveStore,
+	imageAnalyzer imageproc.Analyzer,
 ) *Engine {
 	if cfg == nil {
 		cfg = config.Default()
@@ -111,6 +196,11 @@ func NewWithDeps(
 		vector:        vector,
 		bleve:         bleve,
 		embed:         embed,
+		kg:            kg,
+		images:        images,
+		imageVector:   imageVector,
+		imageBleve:    imageBleve,
+		imageAnalyzer: imageAnalyzer,
 		decay:         decayParams,
 		decayCacheTTL: decayCacheTTL,
 	}
@@ -186,6 +276,7 @@ func (e *Engine) Remember(ctx context.Context, req RememberRequest) (*model.Memo
 		_ = e.vector.Remove(m.ID)
 		return nil, err
 	}
+	e.syncMemoryGraph(m)
 	return m, nil
 }
 
@@ -226,6 +317,8 @@ type RecallTraceCandidate struct {
 	VectorRank      int               `json:"vector_rank,omitempty"`
 	BM25Score       float64           `json:"bm25_score,omitempty"`
 	BM25Rank        int               `json:"bm25_rank,omitempty"`
+	KGScore         float64           `json:"kg_score,omitempty"`
+	KGRank          int               `json:"kg_rank,omitempty"`
 	FusedScore      float64           `json:"fused_score"`
 	Accepted        bool              `json:"accepted"`
 	FilteredReasons []string          `json:"filtered_reasons,omitempty"`
@@ -239,7 +332,7 @@ type ExplainResult struct {
 	Filtered []RecallTraceCandidate `json:"filtered"`
 }
 
-// Recall performs hybrid recall (vector + BM25, RRF fusion).
+// Recall performs hybrid recall (vector + BM25 + KG, RRF fusion).
 func (e *Engine) Recall(ctx context.Context, query string, k int, minClarity float64) ([]RecallResult, error) {
 	results, _, err := e.recallWithTrace(ctx, query, k, minClarity, true)
 	return results, err
@@ -258,11 +351,19 @@ func (e *Engine) Explain(ctx context.Context, query string, k int, minClarity fl
 	}, nil
 }
 
-func (e *Engine) recallWithTrace(ctx context.Context, query string, k int, minClarity float64, reinforce bool) ([]RecallResult, []RecallTraceCandidate, error) {
-	if e.decayCacheTTL == 0 || time.Since(e.lastDecayAt) > e.decayCacheTTL {
-		_ = e.DecayAll(ctx)
+func (e *Engine) maybeDecay(ctx context.Context) {
+	e.decayMu.Lock()
+	defer e.decayMu.Unlock()
+	if e.decayCacheTTL > 0 && time.Since(e.lastDecayAt) <= e.decayCacheTTL {
+		return
+	}
+	if err := e.DecayAll(ctx); err == nil {
 		e.lastDecayAt = time.Now()
 	}
+}
+
+func (e *Engine) recallWithTrace(ctx context.Context, query string, k int, minClarity float64, reinforce bool) ([]RecallResult, []RecallTraceCandidate, error) {
+	e.maybeDecay(ctx)
 	vec, err := e.embed.Embed(ctx, query)
 	if err != nil {
 		return nil, nil, err
@@ -272,9 +373,12 @@ func (e *Engine) recallWithTrace(ctx context.Context, query string, k int, minCl
 	var vecScores []float32
 	var bm25IDs []string
 	var bm25Scores []float64
+	var kgIDs []string
+	var kgScores []float64
+	candidateK := maxRecallCandidates(k)
 	g, gctx := safe.WithContext(ctx)
 	g.Go(func() error {
-		ids, scores, err := e.vector.Search(gctx, vec, k*2)
+		ids, scores, err := e.vector.Search(gctx, vec, candidateK)
 		if err != nil {
 			return err
 		}
@@ -282,19 +386,29 @@ func (e *Engine) recallWithTrace(ctx context.Context, query string, k int, minCl
 		return nil
 	})
 	g.Go(func() error {
-		ids, scores, err := e.bleve.Search(gctx, query, k*2)
+		ids, scores, err := e.bleve.Search(gctx, query, candidateK)
 		if err != nil {
 			return err
 		}
 		bm25IDs, bm25Scores = ids, scores
 		return nil
 	})
+	if e.kg != nil {
+		g.Go(func() error {
+			ids, scores, err := e.kgRecall(gctx, query, candidateK)
+			if err != nil {
+				return err
+			}
+			kgIDs, kgScores = ids, scores
+			return nil
+		})
+	}
 	if err := g.Wait(); err != nil {
 		return nil, nil, err
 	}
 
 	rrfK := 60.0
-	combined := rrfFusionDetailed(vecIDs, vecScores, bm25IDs, bm25Scores, rrfK)
+	combined := rrfFusionDetailed(rrfK, vecIDs, bm25IDs, kgIDs)
 	vecScoreMap := make(map[string]float64, len(vecIDs))
 	vecRankMap := make(map[string]int, len(vecIDs))
 	for i, id := range vecIDs {
@@ -306,6 +420,12 @@ func (e *Engine) recallWithTrace(ctx context.Context, query string, k int, minCl
 	for i, id := range bm25IDs {
 		bm25ScoreMap[id] = bm25Scores[i]
 		bm25RankMap[id] = i + 1
+	}
+	kgScoreMap := make(map[string]float64, len(kgIDs))
+	kgRankMap := make(map[string]int, len(kgIDs))
+	for i, id := range kgIDs {
+		kgScoreMap[id] = kgScores[i]
+		kgRankMap[id] = i + 1
 	}
 
 	var results []RecallResult
@@ -328,7 +448,7 @@ func (e *Engine) recallWithTrace(ctx context.Context, query string, k int, minCl
 		if err != nil {
 			return nil, nil, err
 		}
-		trace := buildTraceCandidate(m, item, vecScoreMap, vecRankMap, bm25ScoreMap, bm25RankMap, conflicts, now)
+		trace := buildTraceCandidate(m, item, vecScoreMap, vecRankMap, bm25ScoreMap, bm25RankMap, kgScoreMap, kgRankMap, conflicts, now)
 		filterReasons := make([]string, 0, 4)
 		if m.Clarity < minClarity {
 			filterReasons = append(filterReasons, "below_min_clarity")
@@ -349,7 +469,7 @@ func (e *Engine) recallWithTrace(ctx context.Context, query string, k int, minCl
 			m.AccessCount++
 			_ = e.mem.UpdateAccess(m.ID, m.AccessCount)
 		}
-		evidence := recallEvidence(m.ID, vecScoreMap, vecRankMap, bm25ScoreMap, bm25RankMap)
+		evidence := recallEvidence(m.ID, vecScoreMap, vecRankMap, bm25ScoreMap, bm25RankMap, kgScoreMap, kgRankMap)
 		results = append(results, RecallResult{
 			Memory:         m,
 			MemoryID:       m.ID,
@@ -386,13 +506,12 @@ type conflictInfo struct {
 	versions      []int
 }
 
-func rrfFusionDetailed(vecIDs []string, vecScores []float32, bm25IDs []string, bm25Scores []float64, k float64) []rankedResult {
+func rrfFusionDetailed(k float64, lists ...[]string) []rankedResult {
 	scores := make(map[string]float64)
-	for i, id := range vecIDs {
-		scores[id] += 1.0 / (k + float64(i+1))
-	}
-	for i, id := range bm25IDs {
-		scores[id] += 1.0 / (k + float64(i+1))
+	for _, ids := range lists {
+		for i, id := range ids {
+			scores[id] += 1.0 / (k + float64(i+1))
+		}
 	}
 
 	items := make([]rankedResult, 0, len(scores))
@@ -554,7 +673,17 @@ func (e *Engine) DecayAll(ctx context.Context) error {
 	if err := g.Wait(); err != nil {
 		return err
 	}
-	return e.mem.UpdateDecayBatch(updates)
+	if err := e.mem.UpdateDecayBatch(updates); err != nil {
+		return err
+	}
+	for i, update := range updates {
+		memories[i].Clarity = update.Clarity
+		memories[i].LifecycleState = update.LifecycleState
+		memories[i].ResidualForm = update.ResidualForm
+		memories[i].ResidualContent = update.ResidualContent
+		e.syncMemoryGraph(memories[i])
+	}
+	return nil
 }
 
 // Close closes all stores.
@@ -564,6 +693,18 @@ func (e *Engine) Close() error {
 		_ = closer.Close()
 	}
 	_ = e.bleve.Close()
+	if e.kg != nil {
+		_ = e.kg.Close()
+	}
+	if e.images != nil {
+		_ = e.images.Close()
+	}
+	if closer, ok := e.imageVector.(interface{ Close() error }); ok {
+		_ = closer.Close()
+	}
+	if e.imageBleve != nil {
+		_ = e.imageBleve.Close()
+	}
 	return nil
 }
 
@@ -599,13 +740,16 @@ func freshnessScore(m *model.Memory, now time.Time) float64 {
 	return score
 }
 
-func recallEvidence(id string, vecScoreMap map[string]float64, vecRankMap map[string]int, bm25ScoreMap map[string]float64, bm25RankMap map[string]int) []RecallEvidence {
-	evidence := make([]RecallEvidence, 0, 2)
+func recallEvidence(id string, vecScoreMap map[string]float64, vecRankMap map[string]int, bm25ScoreMap map[string]float64, bm25RankMap map[string]int, kgScoreMap map[string]float64, kgRankMap map[string]int) []RecallEvidence {
+	evidence := make([]RecallEvidence, 0, 3)
 	if score, ok := vecScoreMap[id]; ok {
 		evidence = append(evidence, RecallEvidence{Backend: "vector", Score: score, Rank: vecRankMap[id]})
 	}
 	if score, ok := bm25ScoreMap[id]; ok {
 		evidence = append(evidence, RecallEvidence{Backend: "bm25", Score: score, Rank: bm25RankMap[id]})
+	}
+	if score, ok := kgScoreMap[id]; ok {
+		evidence = append(evidence, RecallEvidence{Backend: "kg", Score: score, Rank: kgRankMap[id]})
 	}
 	return evidence
 }
@@ -634,6 +778,8 @@ func whyRecalled(m *model.Memory, evidence []RecallEvidence, conflict conflictIn
 			reasons = append(reasons, "semantic_match")
 		case "bm25":
 			reasons = append(reasons, "keyword_match")
+		case "kg":
+			reasons = append(reasons, "entity_match")
 		}
 	}
 	if m.AccessCount > 1 {
@@ -686,6 +832,37 @@ func (e *Engine) nextVersion(conflictGroup string) (int, error) {
 	return latest.Version + 1, nil
 }
 
+func (e *Engine) syncMemoryGraph(memory *model.Memory) {
+	if e.kg == nil || memory == nil {
+		return
+	}
+	extraction := entity.ExtractMemoryGraph(memory)
+	for _, ent := range extraction.Entities {
+		entityValue := ent
+		aliases := aliasesForEntity(ent.ID, extraction.Aliases)
+		if err := e.kg.UpsertEntity(&entityValue, aliases); err != nil {
+			return
+		}
+	}
+	for _, rel := range extraction.Relations {
+		relationValue := rel
+		if err := e.kg.UpsertRelation(&relationValue); err != nil {
+			return
+		}
+	}
+	_ = e.kg.ReplaceMemoryEntityLinks(memory.ID, extraction.Links)
+}
+
+func aliasesForEntity(entityID string, aliases []model.EntityAlias) []string {
+	out := make([]string, 0, len(aliases))
+	for _, alias := range aliases {
+		if alias.EntityID == entityID {
+			out = append(out, alias.Alias)
+		}
+	}
+	return out
+}
+
 func suppressedVersions(current int, versions []int) []int {
 	if len(versions) <= 1 {
 		return nil
@@ -706,6 +883,8 @@ func buildTraceCandidate(
 	vecRankMap map[string]int,
 	bm25ScoreMap map[string]float64,
 	bm25RankMap map[string]int,
+	kgScoreMap map[string]float64,
+	kgRankMap map[string]int,
 	conflicts map[string]conflictInfo,
 	now time.Time,
 ) RecallTraceCandidate {
@@ -718,12 +897,14 @@ func buildTraceCandidate(
 		LifecycleState: m.LifecycleState,
 		Strength:       m.Clarity,
 		Freshness:      freshnessScore(m, now),
-		NeedsGrounding: needsGrounding(m, recallEvidence(m.ID, vecScoreMap, vecRankMap, bm25ScoreMap, bm25RankMap), conflict),
+		NeedsGrounding: needsGrounding(m, recallEvidence(m.ID, vecScoreMap, vecRankMap, bm25ScoreMap, bm25RankMap, kgScoreMap, kgRankMap), conflict),
 		SourceRefs:     m.SourceRefs,
 		VectorScore:    vecScoreMap[m.ID],
 		VectorRank:     vecRankMap[m.ID],
 		BM25Score:      bm25ScoreMap[m.ID],
 		BM25Rank:       bm25RankMap[m.ID],
+		KGScore:        kgScoreMap[m.ID],
+		KGRank:         kgRankMap[m.ID],
 		FusedScore:     item.score,
 		Accepted:       true,
 		LatestVersion:  conflict.latestVersion,
@@ -760,6 +941,79 @@ func buildConflictInfo(memories []*model.Memory) conflictInfo {
 	}
 	sort.Ints(info.versions)
 	return info
+}
+
+func maxRecallCandidates(k int) int {
+	if k <= 0 {
+		return 10
+	}
+	if k < 5 {
+		return 10
+	}
+	return k * 2
+}
+
+func (e *Engine) kgRecall(ctx context.Context, query string, limit int) ([]string, []float64, error) {
+	if e.kg == nil {
+		return nil, nil, nil
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+	terms := entity.QueryTerms(query)
+	if len(terms) == 0 {
+		return nil, nil, nil
+	}
+
+	scores := make(map[string]float64)
+	for termIdx, term := range terms {
+		select {
+		case <-ctx.Done():
+			return nil, nil, ctx.Err()
+		default:
+		}
+
+		entities, err := e.kg.FindEntities(term, limit)
+		if err != nil {
+			return nil, nil, err
+		}
+		for entityIdx, ent := range entities {
+			links, err := e.kg.ListEntityMemoryLinks(ent.ID, limit)
+			if err != nil {
+				return nil, nil, err
+			}
+			entityBoost := 1.0 / float64(termIdx+entityIdx+1)
+			for linkIdx, link := range links {
+				if strings.TrimSpace(link.MemoryID) == "" {
+					continue
+				}
+				linkBoost := 1.0 / float64(linkIdx+1)
+				scores[link.MemoryID] += (link.Confidence + entityBoost) * linkBoost
+			}
+		}
+	}
+
+	items := make([]rankedResult, 0, len(scores))
+	for id, score := range scores {
+		items = append(items, rankedResult{id: id, score: score})
+	}
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].score == items[j].score {
+			return items[i].id < items[j].id
+		}
+		return items[i].score > items[j].score
+	})
+	if len(items) > limit {
+		items = items[:limit]
+	}
+
+	ids := make([]string, 0, len(items))
+	outScores := make([]float64, 0, len(items))
+	for _, item := range items {
+		ids = append(ids, item.id)
+		outScores = append(outScores, item.score)
+	}
+	return ids, outScores, nil
 }
 
 func normalizeLoadedMemory(m *model.Memory) {
