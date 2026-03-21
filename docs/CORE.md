@@ -31,6 +31,7 @@ Echo Fade Memory 作为**记忆中间件**存在：可被任意 Agent、Skill、
 | **冲突分组 / 版本化** | 同主题记忆先进入 `conflict_group`，用 `version` 保留演化轨迹 |
 | **时间衰减** | strength = f(t, access, importance, emotional)，可配置 |
 | **人格偏置** | 高 emotional_weight 的记忆衰减更慢，形成人格锚点 |
+| **图与多模态扩展** | entity/KG、image memory、federated recall、dashboard workbench 作为 Phase 2 core 能力补齐 |
 
 ---
 
@@ -47,7 +48,7 @@ Echo Fade Memory 作为**记忆中间件**存在：可被任意 Agent、Skill、
 
 ## 当前接口方向
 
-当前代码已开始对齐以下中间件语义：
+当前代码已经围绕以下中间件语义收敛：
 
 - `remember(event, meta)`
 - `recall(query, context)`
@@ -57,12 +58,18 @@ Echo Fade Memory 作为**记忆中间件**存在：可被任意 Agent、Skill、
 - `forget(policy)`
 - `explain(recall_result | query)`
 
+当前对外表面大致分三层：
+
+- core memory API：`/v1/memories`
+- thin agent contract：`/v1/tools/store`、`/v1/tools/recall`、`/v1/tools/forget`
+- observation/workbench UI：`/dashboard` 与 `/v1/dashboard/*`
+
 ---
 
 ## 非目标
 
 - 不做完整 Agent 编排或工作流引擎
-- 不做 UI 或终端产品
+- 不做完整消费级前端产品或独立 Agent IDE；当前 dashboard/workbench 仅作为观察与操作面板
 - 不绑定单一 LLM 或嵌入模型（通过 Ollama 等可插拔）
 
 ---
