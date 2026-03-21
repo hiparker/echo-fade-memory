@@ -369,3 +369,28 @@ func (c *Config) SQLitePath() string {
 	}
 	return filepath.Join(c.DataPath, "memories.db")
 }
+
+// KGSQLitePath returns path to the default SQLite graph store.
+func (c *Config) KGSQLitePath() string {
+	return filepath.Join(c.DataPath, "kg.db")
+}
+
+// ImageSQLitePath returns path to the default SQLite image store.
+func (c *Config) ImageSQLitePath() string {
+	return filepath.Join(c.DataPath, "images.db")
+}
+
+// ImageVectorPath returns the resolved image vector store path.
+func (c *Config) ImageVectorPath() string {
+	switch strings.ToLower(strings.TrimSpace(c.VectorStore.Type)) {
+	case "chromem":
+		return filepath.Join(c.DataPath, "image-vector", "chromem")
+	default:
+		return filepath.Join(c.DataPath, "image-vector", "local", "vectors.json")
+	}
+}
+
+// ImageBlevePath returns path to the image Bleve index.
+func (c *Config) ImageBlevePath() string {
+	return filepath.Join(c.DataPath, "image-bleve")
+}
