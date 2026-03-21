@@ -234,7 +234,7 @@ recall(query) =
 - **部署友好**：`DATA_PATH` 可配置，存储集中；Dockerfile + docker-compose 从 Phase 1 起提供
 - **跨平台**：Go 交叉编译支持 macOS (Intel/Apple Silicon)、Windows、Linux；GitHub Releases 多架构二进制；Homebrew/Scoop 等包管理可后续接入
 - 五层落地：写入层（存储格式）→ 时间层（衰减调度）→ 变形层（摘要/关键词/残影规则）→ 检索层（三路召回）→ 展示层（CLI 输出）
-- **MVP 仅文本**：不做图片变糊，先做文本退化（0/7/30/90/180 天时间线）
+- **MVP 先做文本退化**：不做图片变糊这类视觉衰减效果；即使 Phase 2 已支持图片记忆的 store/recall，衰减主线仍先落在文本时间线（0/7/30/90/180 天）
 - 记忆单元 + **chromem-go**（纯 Go 向量存储）+ **Bleve** + Ollama 嵌入
 - 衰减算法：对齐上述时间线，可配置 λ、强化系数
 - 召回：向量 + BM25；clarity 极低时（如 180 天）仅支持**联想召回**，不可直接 key 查
@@ -242,9 +242,10 @@ recall(query) =
 ### Phase 2: 知识图谱 + 与 LLM 集成
 
 - **知识图谱**：实体抽取、关系建模，作为第三路召回参与 RRF 融合
+- **最小图片记忆**：支持图片/截图引用存储、caption/tags/OCR 文本、文本召回图片、以及与 memory/session/decision 的轻量绑定
 - **HTTP API**：`serve` 模式暴露 REST，供 skill/agent 远程调用
 - **Skill 模板**：提供 `echo-fade-memory` skill 示例，描述触发场景与调用方式
-- **OpenClaw 插件**：TypeScript 包，注册 `store_memory`/`recall_memory` 等 Agent Tools，通过 HTTP 调用核心服务；`openclaw plugins install` 安装
+- **OpenClaw 插件**：TypeScript 包，注册收敛后的 `store` / `recall` / `forget` Agent Tools，通过 HTTP 调用核心服务；`openclaw plugins install` 安装
 - 记忆层作为 RAG 的「长期记忆」后端
 - 上下文窗口 = 近期清晰记忆 + 模糊轮廓（按需展开）
 - 对话中引用记忆时自动触发强化
@@ -256,6 +257,8 @@ recall(query) =
 - 实验：同一 base model + 不同记忆历史 → 不同「人格」
 - 情感加权 pipeline：检测用户强烈表达 → 提升对应记忆的 emotional_weight
 - 知识图谱支撑人格描述：「用户偏好 X」「认识 Y」等结构化信息
+- 增加异步 LLM 衰减压缩：通过后台任务把旧记忆改写成更高质量的语义 residual，而不只是当前的规则式截断/关键词
+- 当前规则式 residual 继续作为同步基础路径；LLM 压缩应是可选、延迟执行、且不阻塞 store/recall 的增强层
 
 ---
 
@@ -313,8 +316,12 @@ recall(query) =
         ├── vector/
         │   ├── local/vectors.json  # 默认 local 向量
         │   └── chromem/            # chromem-go 持久化向量目录
-        ├── bleve/                  # 全文索引
-        └── memories.db             # SQLite 记忆元数据
+        ├── bleve/                  # memory 全文索引
+        ├── memories.db             # SQLite 记忆元数据
+        ├── kg.db                   # SQLite 知识图谱元数据
+        ├── images.db               # SQLite 图片元数据
+        ├── image-bleve/            # 图片全文索引
+        └── image-vector/           # 图片向量后端数据
 ```
 
 备份：`tar -czvf backup.tar.gz ~/.echo-fade-memory/workspaces/<workspace-id>/data`；迁移：解压到新的 runtime home 即可。
@@ -350,7 +357,7 @@ recall(query) =
 | ------ | -------------------------------------------------------- |
 | **核心** | Go 服务，HTTP API，独立运行                                      |
 | **插件** | TypeScript/JS 包，`api.registerTool()` 注册 Agent Tools      |
-| **工具** | `store_memory`、`recall_memory`、`list_memories` 等，LLM 可调用 |
+| **工具** | 收敛后的 `store`、`recall`、`forget` 三件套；更丰富的 debug/dashboard 路由不暴露给 agent 合同 |
 | **安装** | `openclaw plugins install @scope/echo-fade-memory`       |
 | **配置** | 插件内通过 env/config 指定 `ECHO_FADE_MEMORY_URL`（核心 API 地址）    |
 

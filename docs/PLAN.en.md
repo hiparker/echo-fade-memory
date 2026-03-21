@@ -226,7 +226,7 @@ Start with core engine, then split by scenario.
 - **Deployment-friendly**: `DATA_PATH` configurable, storage centralized; Dockerfile + docker-compose from Phase 1
 - **Cross-platform**: Go cross-compilation for macOS (Intel/Apple Silicon), Windows, Linux; GitHub Releases multi-arch binaries; Homebrew/Scoop etc. later
 - Five layers: Write (storage format) → Time (decay schedule) → Transform (summary/keywords/residual rules) → Retrieve (three-way recall) → Present (CLI output)
-- **MVP text only**: No image blurring; text degradation first (0/7/30/90/180 day timeline)
+- **MVP text degradation first**: No image blurring effects; text decay timeline comes first even though Phase 2 can already store and recall image memory
 - Memory unit + **chromem-go** (pure Go vector store) + **Bleve** + Ollama embedding
 - Decay algorithm: Align with timeline; configurable λ, reinforcement coefficients
 - Recall: Vector + BM25; when clarity very low (e.g., 180 days) **associative recall** only, no direct key lookup
@@ -236,7 +236,7 @@ Start with core engine, then split by scenario.
 - **Knowledge graph**: Entity extraction, relation modeling, third recall path in RRF fusion
 - **HTTP API**: `serve` mode exposes REST for skill/agent remote calls
 - **Skill template**: Provide `echo-fade-memory` skill example, trigger scenarios and invocation
-- **OpenClaw plugin**: TypeScript package, register `store_memory`/`recall_memory` etc. as Agent Tools, call core via HTTP; `openclaw plugins install`
+- **OpenClaw plugin**: TypeScript package, register the thin `store` / `recall` / `forget` contract as Agent Tools, call core via HTTP; `openclaw plugins install`
 - Memory layer as RAG "long-term memory" backend
 - Context window = recent clear memories + fuzzy outlines (expand on demand)
 - Recall during dialogue triggers reinforcement
@@ -248,6 +248,8 @@ Start with core engine, then split by scenario.
 - Experiment: same base model + different memory history → different "personalities"
 - Emotional weighting pipeline: detect strong user expression → boost corresponding memory emotional_weight
 - Knowledge graph supports personality description: "User prefers X", "Knows Y" etc.
+- Add asynchronous LLM-based decay compression: background jobs rewrite old memories into higher-quality semantic residuals instead of only rule-based truncation/keywords
+- Keep the current rule-based residual path as the synchronous baseline; LLM compression should be optional, delayed, and non-blocking for store/recall
 
 ---
 
@@ -305,8 +307,12 @@ Start with core engine, then split by scenario.
         ├── vector/
         │   ├── local/vectors.json  # Default local vectors
         │   └── chromem/            # chromem-go persistent store
-        ├── bleve/                  # Full-text index
-        └── memories.db             # SQLite memory metadata
+        ├── bleve/                  # Memory full-text index
+        ├── memories.db             # SQLite memory metadata
+        ├── kg.db                   # SQLite knowledge graph metadata
+        ├── images.db               # SQLite image metadata
+        ├── image-bleve/            # Image full-text index
+        └── image-vector/           # Image vector backend data
 ```
 
 Backup: `tar -czvf backup.tar.gz ~/.echo-fade-memory/workspaces/<workspace-id>/data`; migrate: extract into a new runtime home.
@@ -342,7 +348,7 @@ As an **OpenClaw** plugin, expose memory capabilities to AI agents:
 | --------- | ---------------------------------------------------------------- |
 | **Core**  | Go service, HTTP API, runs standalone                            |
 | **Plugin**| TypeScript/JS package, `api.registerTool()` for Agent Tools      |
-| **Tools** | `store_memory`, `recall_memory`, `list_memories` etc., LLM-callable |
+| **Tools** | `store`, `recall`, `forget` thin contract; richer debug and dashboard routes stay outside the agent surface |
 | **Install** | `openclaw plugins install @scope/echo-fade-memory`            |
 | **Config** | Plugin env/config: `ECHO_FADE_MEMORY_URL` (core API address)   |
 
