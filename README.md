@@ -33,6 +33,33 @@ An **AI memory middleware** built for forgetting. It helps agents remember, deca
 
 ---
 
+## Dashboard Snapshot
+
+`/dashboard` 现在提供一个面向 Phase 2 的轻量观察与操作面板：
+
+- `Overview`: 全局 KPI、健康状态、memory/image/entity 对齐情况
+- `Detail`: Top-N、趋势、分布、覆盖率等分析视图
+- `Workbench`: 一个统一输入框联动 memory、image、entity 的 federated recall
+
+### Overview
+
+![Overview](images/overview.png)
+
+### Detail
+
+![Detail](images/detail.png)
+
+### Workbench
+
+![Workbench](images/workbench.png)
+
+Integrity check mode defaults to lightweight:
+
+- compare SQL total vs vector total when backend supports count;
+- run sampled ID checks (default `sample_size=200`) when backend supports ID existence checks.
+
+---
+
 ## Quick Start
 
 **Prerequisites**: [Go 1.26+](https://go.dev/dl/), [Ollama](https://ollama.ai/) with `nomic-embed-text` model.
@@ -73,8 +100,13 @@ make build
 # GET    /v1/memories/<id>/ground
 # POST   /v1/memories/explain {"query":"..."}
 # POST   /v1/memories/decay
-# GET    /v1/stats/overview?window_days=30
-# GET    /v1/stats/integrity?sample_size=200
+# POST   /v1/tools/store {"content":"..."} or {"object_type":"image","file_path":"..."}
+# POST   /v1/tools/recall {"query":"...","k":5}
+# POST   /v1/tools/forget {"query":"...","object_type":"memory|image"} or {"id":"..."}
+# GET    /v1/dashboard/stats/overview?window_days=30
+# GET    /v1/dashboard/stats/integrity?sample_size=200
+# GET    /v1/dashboard/stats/detail?window_days=30&top_k=10&sample_size=200
+# POST   /v1/dashboard/workbench/query {"query":"...","k":5}
 # Dashboard: GET /dashboard
 ```
 
@@ -164,7 +196,13 @@ Each memory can include:
 
 ## API Snapshot
 
-Phase 1 exposes a single public HTTP contract:
+Agent-facing HTTP routes are now intentionally thin:
+
+- `POST /v1/tools/store`
+- `POST /v1/tools/recall`
+- `POST /v1/tools/forget`
+
+Core memory and debug HTTP routes remain available:
 
 - `POST /v1/memories`
 - `GET /v1/memories?q=...`
@@ -178,30 +216,8 @@ Phase 1 exposes a single public HTTP contract:
 - `GET /v1/memories/:id/versions`
 - `GET /v1/healthz`
 - `GET /v1/readyz`
-- `GET /v1/stats/overview?window_days=30`
-- `GET /v1/stats/integrity?sample_size=200`
+- `GET /v1/dashboard/stats/overview?window_days=30`
+- `GET /v1/dashboard/stats/integrity?sample_size=200`
+- `GET /v1/dashboard/stats/detail?window_days=30&top_k=10&sample_size=200`
+- `POST /v1/dashboard/workbench/query`
 
-## Dashboard Snapshot
-
-`/dashboard` now has three tabs:
-
-- `Overview`: core KPIs, health summary, and lightweight SQL/vector integrity checks.
-- `Detail`: Top-N lists (new/risk/access), distributions, and created trend chart.
-- `Workbench`: recall/explain/decay operations for manual diagnosis and query verification.
-
-### Overview
-
-![Overview](images/overview.png)
-
-### Detail
-
-![Detail](images/detail.png)
-
-### Workbench
-
-![Workbench](images/workbench.png)
-
-Integrity check mode defaults to lightweight:
-
-- compare SQL total vs vector total when backend supports count;
-- run sampled ID checks (default `sample_size=200`) when backend supports ID existence checks.
