@@ -1,9 +1,9 @@
 ---
 name: echo-fade-memory
-version: 1.1.0
-description: "Runs a decay-aware long-term memory workflow on top of the echo-fade-memory service. Use when an agent needs durable cross-session memory, recall before answering, reinforce reused memories, log corrections/errors/feature requests, or wire hooks/scripts into Cursor, Claude Code, Codex, or OpenClaw."
+version: 1.3.0
+description: "Runs a thin long-term memory workflow on top of the echo-fade-memory service. Use proactively whenever an answer may depend on prior session context, durable user facts, preferences, recent personal state, past decisions, corrections, unresolved work, or previously shared images/screenshots/files. Prefer low-cost recall before answering and store durable facts or visual artifacts early."
 author: hiparker
-keywords: [memory, ai-agent, long-term-memory, decay, forgetting, explainable-recall, chromem, bm25, bleve, hooks, openclaw, cursor, codex, claude-code, project-memory, learnings]
+keywords: [memory, ai-agent, long-term-memory, recall, store, forget, image-memory, multimodal, screenshot, ocr, dashboard, openclaw, cursor, codex, claude-code]
 metadata:
   requires:
     runtime:
@@ -13,68 +13,93 @@ metadata:
 
 # Echo Fade Memory
 
-This skill turns `echo-fade-memory` into an **installed agent memory operating layer**.
+This skill turns `echo-fade-memory` into an installed **agent memory operating layer**.
 
-It is designed to replace the useful parts of the reference skills with a single project-native workflow:
+The public agent contract is intentionally thin:
 
-- Replace `elite-longterm-memory`'s vector memory flow with `echo-fade-memory` recall/store/reinforce/ground
-- Replace `self-improving-agent`'s `.learnings/` reminders with hooks that tell the agent to persist durable learnings into memory
-- Replace ad-hoc memory scripts with skill-local wrappers in `scripts/`
+- `store`
+- `recall`
+- `forget`
+
+Image memory is folded into the same `store/recall/forget` contract. Dashboard and debugging routes live under `/v1/dashboard/*` and are not part of the agent-facing tool surface.
+
+## Natural Triggers in OpenClaw
+
+Use this skill implicitly when the conversation includes:
+
+- remember this / 记住这个
+- what did we decide before / 上次定的是什么
+- user preferences, durable constraints, corrections
+- project decisions worth carrying across sessions
+- screenshots, diagrams, receipts, whiteboards, or UI states that may matter later
+- repeated failures that reveal a reusable workaround
+- elliptical continuity prompts such as 那个、这个、继续刚才的、你知道的
+- time-indexed prompts such as 今天、刚刚、最近、这次、又、还、还是、依然
+- continuity checks such as 你记得吗、你不是知道吗、你忘了？
+
+Prefer over-triggering low-cost recall to under-triggering and answering as if no history exists.
+
+If `http://127.0.0.1:8080` is unreachable in a containerized environment, set:
+
+```bash
+export EFM_BASE_URL=http://host.docker.internal:8080
+```
 
 ## Quick Reference
 
 | Situation | Action |
 |-----------|--------|
-| Start of a task or session | Recall relevant context with `./scripts/recall-memory.sh "<query>"` |
-| User states preference / decision / correction | Store immediately with `./scripts/store-memory.sh ...` |
-| Agent reuses a memory successfully | Reinforce it with `./scripts/reinforce-memory.sh <id>` |
-| Memory result looks fuzzy | Ground it with `GET /v1/memories/<id>/ground` |
-| Command/tool failure reveals a reusable lesson | Store an error/learning memory with high importance |
-| User requests unsupported capability | Store as a feature-request memory |
-| Periodic cleanup / freshness | Run `POST /v1/memories/decay` |
-
-## Replacement Mapping
-
-| Reference skill capability | Replacement in this package |
-|----------------------------|-----------------------------|
-| `elite-longterm-memory` warm vector store | `echo-fade-memory` vector + BM25 + explainable recall |
-| `elite-longterm-memory` manual memory commands | `scripts/store-memory.sh` and `scripts/recall-memory.sh` |
-| `self-improving-agent` activator hook | `scripts/activator.sh` + `hooks/openclaw/handler.js` |
-| `self-improving-agent` error reminder | `scripts/error-detector.sh` |
-| `self-improving-agent` examples/references | `references/*.md` and `assets/*.md` |
+| Start of a task or session | Recall relevant context with `./scripts/recall.sh "<query>"` |
+| User states a durable preference / decision / correction | Store it immediately with `./scripts/store.sh "<content>" --summary "<summary>" --type <type>` |
+| User sends an image or screenshot worth keeping | Store it with `./scripts/store.sh "<file-path>" --object-type image` |
+| Need old memory, image, or topic with one query | Use `./scripts/recall.sh "<query>"` |
+| User asks to delete wrong or obsolete memory | Use `./scripts/forget.sh "<query-or-id>"` |
+| Need debug analytics or dashboards | Open `/dashboard` or call `/v1/dashboard/*` |
 
 ## Core Workflow
 
 ### 1. Recall Before Responding
 
-Before answering about prior decisions, preferences, goals, or unresolved issues:
+Before answering about prior decisions, preferences, goals, screenshots, or unresolved issues:
 
 ```bash
-./scripts/recall-memory.sh "database choice for this project"
+./scripts/recall.sh "database choice for this project"
 ```
 
-Check:
+Inspect:
 
-- `why_recalled`
-- `needs_grounding`
-- `evidence`
+- `mixed`
+- `memories`
+- `images`
+- `entities`
 
-If confidence is low, call `/ground` before relying on it.
+If a recalled memory is fuzzy, you can still ground it with `GET /v1/memories/<id>/ground`, but keep that as an internal troubleshooting path rather than the default agent contract.
 
 ### 2. Store Durable Facts Early
 
-When the user says something durable, store it **before** moving on:
+When the user says something durable, store it before moving on.
+
+Recommended minimal memory shape:
+
+- `content`
+- `summary`
+- `type`
 
 ```bash
-./scripts/store-memory.sh \
+./scripts/store.sh \
   "User prefers dark mode and minimal UI" \
-  --type preference \
   --summary "dark mode preference" \
-  --importance 0.95 \
-  --ref "session:2026-03-18"
+  --type preference
 ```
 
-Use high importance for:
+Advanced fields still exist, but only add them when you have a clear reason:
+
+- `--importance`
+- `--ref`
+- `--kind`
+- `--conflict-group`
+
+Use higher `importance` only for:
 
 - preferences
 - corrections
@@ -82,59 +107,68 @@ Use high importance for:
 - constraints
 - explicit "remember this" statements
 
-### 3. Reinforce Reused Memories
+### 3. Store Images Through the Same Entry
 
-If a memory was recalled and actually helped:
+When the conversation includes a screenshot, whiteboard, receipt, or other durable visual artifact.
+
+Recommended minimal image shape:
+
+- `file_path` or `url`
+- optional `caption`
+- optional `tags`
+- optional `ocr_text`
 
 ```bash
-./scripts/reinforce-memory.sh <memory-id>
+./scripts/store.sh \
+  "/absolute/path/to/meeting-whiteboard.png" \
+  --object-type image \
+  --caption "meeting whiteboard about rollout" \
+  --tag rollout \
+  --ocr-text "Deployment Checklist"
 ```
 
-This increases `access_count`, updates `last_accessed_at`, and slows decay.
+Advanced image flags still exist, but they are not the default mental model:
 
-### 4. Capture Learnings and Errors as Memories
+- `--session`
+- `--kind`
+- `--actor`
+- `--memory-id`
+- `--url`
 
-Instead of `.learnings/ERRORS.md` or `.learnings/FEATURE_REQUESTS.md`, this skill stores durable operational lessons in memory.
+Use image memory when the user is likely to ask:
 
-Recommended mapping:
+- "上次那张图"
+- "有猫那张图"
+- "包含某句话的截图"
+- "和那个决定相关的图片"
 
-| Type of learning | Suggested `memory_type` | Notes |
-|------------------|-------------------------|-------|
+### 4. Forget Wrong or Obsolete State
+
+If a memory or image is incorrect, unsafe, or obsolete:
+
+```bash
+./scripts/forget.sh "that obsolete deployment note"
+./scripts/forget.sh "<image-id-or-query>" image
+```
+
+## Memory Taxonomy
+
+| Situation | `memory_type` | Notes |
+|-----------|---------------|-------|
 | User preference | `preference` | Use high importance |
 | Project decision | `project` | Add `conflict_group` for versioning |
+| Goal / pending work | `goal` | Good for future follow-ups |
 | Error workaround | `project` | Prefix summary with `error:` or `learning:` |
-| Missing feature / future enhancement | `goal` or `project` | Prefix summary with `feature-request:` |
-
-### 5. Decay and Grounding
-
-Memories are not static. They fade over time:
-
-```
-full -> summary -> keywords -> fragment -> outline
-```
-
-Strength formula:
-
-```text
-strength = decay * reinforce
-decay     = 1 / (1 + (age_days / tau)^alpha)
-reinforce = 1 + epsilon * (access_count + importance + emotional_weight)
-```
-
-Current practical note:
-
-- `importance` is writable now and should be used to express salience
-- `emotional_weight` is reserved in the model but not yet exposed by the API
+| Capability request | `goal` or `project` | Prefix summary with `feature-request:` |
 
 ## Scripts
 
 | Script | Purpose |
 |--------|---------|
 | `scripts/health-check.sh` | Verify the server is reachable |
-| `scripts/store-memory.sh` | Store preference/decision/error/feature memories |
-| `scripts/recall-memory.sh` | Query recall API with optional `k` |
-| `scripts/reinforce-memory.sh` | Reinforce a recalled memory |
-| `scripts/forget-memory.sh` | Delete a memory |
+| `scripts/store.sh` | Unified store wrapper for memory and image objects |
+| `scripts/recall.sh` | Unified federated recall wrapper |
+| `scripts/forget.sh` | Unified forget wrapper for memory or image objects |
 | `scripts/activator.sh` | Hook reminder for recall/store discipline |
 | `scripts/error-detector.sh` | Hook reminder when command output looks like a failure |
 
@@ -143,62 +177,27 @@ Current practical note:
 ### Service Availability
 
 ```bash
-# the service should already be running
 ./scripts/health-check.sh
 ```
 
-### Service via Docker
+### OpenClaw Config
 
-```bash
-# if your deployment source includes this repository
-docker compose -f docker-compose.ollama.yml up -d
-./scripts/health-check.sh
+Recommended entry in `openclaw.json`:
+
+```json
+{
+  "skills": {
+    "entries": {
+      "echo-fade-memory": {
+        "baseUrl": "http://host.docker.internal:8080"
+      }
+    }
+  }
+}
 ```
 
-The scripts default to `http://127.0.0.1:8080`.
+Recommended precedence:
 
-Override with:
-
-```bash
-export EFM_BASE_URL=http://host:8080
-```
-
-## Agent Rules
-
-### On Session Start
-
-1. Recall project context before deep work.
-2. Prefer recalling with concrete queries over broad dumps.
-3. If the memory looks vague, ground it before using it.
-
-### During Conversation
-
-1. Durable fact appears -> store it.
-2. Durable fact is reused -> reinforce it.
-3. User says to forget -> delete it.
-4. Command failure teaches a lesson -> store a learning memory.
-
-### On Session End
-
-1. Store any important unresolved blocker or next-step decision.
-2. Optionally trigger decay on maintenance windows.
-
-## Additional Resources
-
-- Usage examples: [references/examples.md](references/examples.md)
-- Hook setup: [references/hooks-setup.md](references/hooks-setup.md)
-- OpenClaw integration: [references/openclaw-integration.md](references/openclaw-integration.md)
-- Memory payload templates: [assets/memory-templates.md](assets/memory-templates.md)
-
-## Gotchas
-
-- `needs_grounding: true` means "verify before trusting", not "discard it".
-- Use `importance` now for emotional salience until `emotional_weight` is wired through the API.
-- This skill replaces the *workflow* of the reference skills, not their exact storage layout.
-- The service is the source of truth; file-based memory logs are optional, not required.
-
-## Links
-
-- Repository: https://github.com/hiparker/echo-fade-memory
-- Project overview: `README.md`
-- Architecture: `docs/PLAN.en.md`, `docs/PLAN.zh.md`
+1. `EFM_BASE_URL`
+2. `skills.entries.echo-fade-memory.baseUrl`
+3. default `http://127.0.0.1:8080`
