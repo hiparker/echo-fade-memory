@@ -13,7 +13,7 @@
       .trend-chart { width: 100%; overflow-x: auto; }
       .trend-bars { display: flex; align-items: flex-end; gap: 8px; min-height: 220px; min-width: 640px; padding: 8px 4px 0; }
       .trend-item { width: 42px; text-align: center; }
-      .trend-bar { width: 100%; border-radius: 4px 4px 0 0; background: #1677ff; min-height: 2px; transition: height 0.2s; }
+      .trend-bar { width: 100%; border-radius: 4px 4px 0 0; background: #1677ff; min-height: 4px; }
       .trend-count { font-size: 11px; color: #666; margin-bottom: 4px; }
       .trend-date { margin-top: 6px; font-size: 10px; color: #888; white-space: nowrap; }
     </style>
@@ -28,7 +28,7 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <script type="text/babel">
-      const { App, Button, Card, Col, Descriptions, Input, Layout, Modal, Row, Select, Space, Statistic, Table, Tag, Tabs, Typography } = antd;
+      const { App, Button, Card, Col, Descriptions, Input, Layout, Row, Select, Space, Statistic, Table, Tabs, Tag, Typography } = antd;
       const { Header, Content } = Layout;
       const { Text } = Typography;
 
@@ -43,79 +43,71 @@
           detail: "Detail",
           workbench: "Workbench",
           serviceHealth: "Service Health",
-          totalMemories: "Total Memories",
-          newWindow: "New ({days}d)",
-          avgClarity: "Avg Clarity",
-          newToday: "New Today",
-          newYesterday: "New Yesterday",
-          dayGrowth: "Day Growth %",
-          highDecayRisk: "High Decay Risk",
           healthSummary: "Health Summary",
-          backend: "Backend",
           integrityStatus: "Integrity Status",
+          backend: "Backend",
           sqlTotal: "SQL Total",
           vectorTotal: "Vector Total",
-          sampleChecked: "Sample Checked",
           missingInVector: "Missing In Vector",
-          lastOverviewRefresh: "Last Overview Refresh",
-          pollingStatus: "Polling Status",
-          healthy: "healthy",
+          brokenFilePaths: "Broken File Paths",
+          orphanImages: "Orphan Images",
+          totalMemories: "Total Memories",
+          totalImages: "Total Images",
+          totalEntities: "Total Entities",
+          avgClarity: "Avg Clarity",
+          captionCoverage: "Caption Coverage",
+          ocrCoverage: "OCR Coverage",
+          linkedCoverage: "Linked Coverage",
           topNew: "Top{topK} New Memories",
           topRisk: "Top{topK} Decay Risk",
           topAccess: "Top{topK} Most Accessed",
+          topRecentImages: "Top{topK} Recent Images",
+          topLinkedImages: "Top{topK} Linked Images",
+          topEntities: "Top{topK} Entities",
           lifecycleDistribution: "Lifecycle Distribution",
           decayStageDistribution: "Decay Stage Distribution",
           memoryTypeDistribution: "Memory Type Distribution",
-          createdTrend: "Created Trend ({days}d)",
+          imageSourceDistribution: "Image Source Distribution",
+          createdTrend: "Memory Created Trend ({days}d)",
+          imageTrend: "Image Created Trend ({days}d)",
+          workbenchTitle: "Federated Workbench",
+          query: "Query",
+          searchAll: "Search All",
           noTrendData: "No trend data",
-          recallObservatory: "Recall Observatory",
-          query: "query",
-          runRecall: "Run Recall",
-          runExplain: "Run Explain",
-          decayAll: "Decay All",
-          explainSnapshot: "Explain Snapshot",
+          noData: "No data",
+          lastRefresh: "Last Refresh",
+          mixedResults: "Mixed Results",
+          memoryResults: "Memory Results",
+          imageResults: "Image Results",
+          entityResults: "Entity Results",
+          explainSummary: "Explain Summary",
           accepted: "Accepted",
           filtered: "Filtered",
-          lastRefresh: "Last Refresh",
-          recallHits: "Recall Hits",
-          lastDecayStatus: "Last Decay Status",
-          needGrounding: "Need Grounding",
-          id: "ID",
+          count: "Count",
+          name: "Name",
           summary: "Summary",
           type: "Type",
           created: "Created",
           clarity: "Clarity",
           score: "Score",
           risk: "Risk",
+          access: "Access",
           idleDays: "Idle Days",
           stage: "Stage",
-          access: "Access",
-          name: "Name",
-          count: "Count",
-          date: "Date",
-          unknown: "unknown",
-          nA: "n/a",
-          applyDecayTitle: "Apply decay to all memories?",
-          applyDecayContent: "This operation recalculates decay for all memories.",
-          runDecay: "Run decay",
-          cancel: "Cancel",
-          queryRequired: "query required",
-          healthCheckFailed: "health check failed",
-          overviewRefreshed: "overview refreshed",
-          overviewFailed: "overview failed",
-          integrityRefreshed: "integrity refreshed",
-          integrityFailed: "integrity failed",
-          recallRefreshed: "recall refreshed",
-          recallFailed: "recall failed",
-          explainRefreshed: "explain refreshed",
-          explainFailed: "explain failed",
-          decayCompleted: "decay completed",
-          decayFailed: "decay failed",
-          autoRefreshPaused: "Auto refresh paused",
+          file: "File",
+          sourceSession: "Source Session",
+          linkCount: "Link Count",
+          objectType: "Object Type",
+          title: "Title",
           statusOk: "ok",
           statusUnhealthy: "unhealthy",
-          statusNotTriggered: "not triggered",
-          statusFailed: "failed"
+          unknown: "unknown",
+          queryRequired: "query required",
+          healthCheckFailed: "health check failed",
+          overviewFailed: "overview failed",
+          detailFailed: "detail failed",
+          workbenchFailed: "workbench failed",
+          refreshed: "refreshed"
         },
         zh: {
           dashboardTitle: "Echo Fade Memory 控制台",
@@ -127,79 +119,71 @@
           detail: "明细",
           workbench: "工作台",
           serviceHealth: "服务健康",
-          totalMemories: "记忆总量",
-          newWindow: "新增（{days}天）",
-          avgClarity: "平均清晰度",
-          newToday: "今日新增",
-          newYesterday: "昨日新增",
-          dayGrowth: "日环比 %",
-          highDecayRisk: "高衰减风险",
           healthSummary: "健康摘要",
-          backend: "后端",
           integrityStatus: "一致性状态",
+          backend: "后端",
           sqlTotal: "SQL 总数",
           vectorTotal: "向量总数",
-          sampleChecked: "抽样检查数",
           missingInVector: "向量缺失数",
-          lastOverviewRefresh: "总览刷新时间",
-          pollingStatus: "轮询状态",
-          healthy: "正常",
+          brokenFilePaths: "失效图片路径",
+          orphanImages: "孤立图片数",
+          totalMemories: "记忆总量",
+          totalImages: "图片总量",
+          totalEntities: "实体总量",
+          avgClarity: "平均清晰度",
+          captionCoverage: "描述覆盖率",
+          ocrCoverage: "OCR 覆盖率",
+          linkedCoverage: "链接覆盖率",
           topNew: "最近新增 Top{topK}",
           topRisk: "衰减风险 Top{topK}",
           topAccess: "高频访问 Top{topK}",
+          topRecentImages: "最近图片 Top{topK}",
+          topLinkedImages: "高链接图片 Top{topK}",
+          topEntities: "实体 Top{topK}",
           lifecycleDistribution: "生命周期分布",
           decayStageDistribution: "衰减阶段分布",
           memoryTypeDistribution: "记忆类型分布",
-          createdTrend: "新增趋势（{days}天）",
-          noTrendData: "暂无趋势数据",
-          recallObservatory: "召回观测台",
+          imageSourceDistribution: "图片来源分布",
+          createdTrend: "记忆新增趋势（{days}天）",
+          imageTrend: "图片新增趋势（{days}天）",
+          workbenchTitle: "联动工作台",
           query: "查询词",
-          runRecall: "执行召回",
-          runExplain: "执行解释",
-          decayAll: "全量衰减",
-          explainSnapshot: "Explain 快照",
+          searchAll: "联动检索",
+          noTrendData: "暂无趋势数据",
+          noData: "暂无数据",
+          lastRefresh: "最近刷新",
+          mixedResults: "混合结果",
+          memoryResults: "记忆结果",
+          imageResults: "图片结果",
+          entityResults: "实体结果",
+          explainSummary: "Explain 摘要",
           accepted: "通过",
           filtered: "过滤",
-          lastRefresh: "最近刷新",
-          recallHits: "召回命中",
-          lastDecayStatus: "最近衰减状态",
-          needGrounding: "需溯源数量",
-          id: "ID",
+          count: "数量",
+          name: "名称",
           summary: "摘要",
           type: "类型",
           created: "创建时间",
           clarity: "清晰度",
           score: "分数",
           risk: "风险值",
+          access: "访问次数",
           idleDays: "闲置天数",
           stage: "阶段",
-          access: "访问次数",
-          name: "名称",
-          count: "数量",
-          date: "日期",
-          unknown: "未知",
-          nA: "无",
-          applyDecayTitle: "确认对全部记忆执行衰减？",
-          applyDecayContent: "该操作会重算所有记忆的衰减状态。",
-          runDecay: "执行衰减",
-          cancel: "取消",
-          queryRequired: "请输入查询词",
-          healthCheckFailed: "健康检查失败",
-          overviewRefreshed: "总览已刷新",
-          overviewFailed: "总览请求失败",
-          integrityRefreshed: "一致性已刷新",
-          integrityFailed: "一致性请求失败",
-          recallRefreshed: "召回已刷新",
-          recallFailed: "召回失败",
-          explainRefreshed: "解释已刷新",
-          explainFailed: "解释失败",
-          decayCompleted: "衰减执行完成",
-          decayFailed: "衰减执行失败",
-          autoRefreshPaused: "自动刷新已暂停",
+          file: "文件",
+          sourceSession: "来源会话",
+          linkCount: "链接数",
+          objectType: "对象类型",
+          title: "标题",
           statusOk: "正常",
           statusUnhealthy: "异常",
-          statusNotTriggered: "未执行",
-          statusFailed: "失败"
+          unknown: "未知",
+          queryRequired: "请输入查询词",
+          healthCheckFailed: "健康检查失败",
+          overviewFailed: "总览请求失败",
+          detailFailed: "明细请求失败",
+          workbenchFailed: "工作台请求失败",
+          refreshed: "已刷新"
         }
       };
 
@@ -209,17 +193,22 @@
         if (!response.ok) throw new Error((payload && payload.error) || "request failed");
         return payload;
       };
+
       const api = {
         health: () => fetchJSON("/v1/healthz"),
-        overview: (windowDays, topK) => fetchJSON("/v1/stats/overview?window_days=" + encodeURIComponent(windowDays) + "&top_k=" + encodeURIComponent(topK)),
-        integrity: (sampleSize) => fetchJSON("/v1/stats/integrity?sample_size=" + encodeURIComponent(sampleSize)),
-        recall: (q, k) => fetchJSON("/v1/memories?q=" + encodeURIComponent(q) + "&k=" + encodeURIComponent(k)),
-        explain: (q, k) => fetchJSON("/v1/memories/explain", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query: q, k: Number(k) }) }),
-        decay: () => fetchJSON("/v1/memories/decay", { method: "POST", headers: { "Content-Type": "application/json" } })
+        overview: (windowDays, topK) => fetchJSON("/v1/dashboard/stats/overview?window_days=" + encodeURIComponent(windowDays) + "&top_k=" + encodeURIComponent(topK)),
+        detail: (windowDays, topK, sampleSize) => fetchJSON("/v1/dashboard/stats/detail?window_days=" + encodeURIComponent(windowDays) + "&top_k=" + encodeURIComponent(topK) + "&sample_size=" + encodeURIComponent(sampleSize)),
+        workbench: (query, k) =>
+          fetchJSON("/v1/dashboard/workbench/query", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ query: query, k: Number(k) })
+          })
       };
 
-      const mapToRows = (obj) => Object.entries(obj || {}).map(([k, v]) => ({ key: k, name: k, count: Number(v || 0) })).sort((a, b) => b.count - a.count);
       const LOCALE_STORAGE_KEY = "echo-fade-memory.dashboard.locale";
+      const mapToRows = (obj) => Object.entries(obj || {}).map(([name, count]) => ({ key: name, name: name, count: Number(count || 0) })).sort((a, b) => b.count - a.count);
+      const ratioPercent = (value) => Number(value || 0) * 100;
 
       const readSavedLocale = () => {
         try {
@@ -230,135 +219,211 @@
         }
       };
 
+      function TrendChart({ points, emptyText }) {
+        const safePoints = Array.isArray(points) ? points : [];
+        if (!safePoints.length) {
+          return <Text type="secondary">{emptyText}</Text>;
+        }
+        const max = safePoints.reduce((acc, item) => Math.max(acc, Number((item && item.count) || 0)), 0);
+        return (
+          <div className="trend-chart">
+            <div className="trend-bars">
+              {safePoints.map((item) => {
+                const count = Number((item && item.count) || 0);
+                const height = max > 0 ? Math.max(6, Math.round((count / max) * 180)) : 6;
+                const label = String((item && item.date) || "").slice(5);
+                return (
+                  <div className="trend-item" key={item.date || label}>
+                    <div className="trend-count">{count}</div>
+                    <div className="trend-bar" style={{ height: height + "px" }} />
+                    <div className="trend-date">{label}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      }
+
       function Dashboard() {
         const { message } = App.useApp();
         const [locale, setLocale] = React.useState(readSavedLocale);
         const [activeTab, setActiveTab] = React.useState("overview");
         const [windowDays] = React.useState(30);
-        const [sampleSize] = React.useState(200);
         const [topK] = React.useState(10);
+        const [sampleSize] = React.useState(200);
         const [query, setQuery] = React.useState("project");
         const [k, setK] = React.useState(5);
         const [health, setHealth] = React.useState("unknown");
-        const [lastRefreshAt, setLastRefreshAt] = React.useState(null);
-        const [lastOverviewAt, setLastOverviewAt] = React.useState(null);
-        const [lastDecayStatus, setLastDecayStatus] = React.useState("not triggered");
-        const [pollingWarn, setPollingWarn] = React.useState("");
-        const [overviewLoading, setOverviewLoading] = React.useState(false);
-        const [integrityLoading, setIntegrityLoading] = React.useState(false);
-        const [tableLoading, setTableLoading] = React.useState(false);
-        const [explainLoading, setExplainLoading] = React.useState(false);
         const [overview, setOverview] = React.useState(null);
-        const [integrity, setIntegrity] = React.useState(null);
-        const [results, setResults] = React.useState([]);
-        const [accepted, setAccepted] = React.useState([]);
-        const [filtered, setFiltered] = React.useState([]);
+        const [detail, setDetail] = React.useState(null);
+        const [workbench, setWorkbench] = React.useState(null);
+        const [overviewLoading, setOverviewLoading] = React.useState(false);
+        const [detailLoading, setDetailLoading] = React.useState(false);
+        const [workbenchLoading, setWorkbenchLoading] = React.useState(false);
+        const [lastWorkbenchRefresh, setLastWorkbenchRefresh] = React.useState(null);
 
         const t = React.useCallback((key, vars) => {
           const dict = I18N[locale] || I18N.en;
           let text = dict[key] || I18N.en[key] || key;
-          if (vars) Object.keys(vars).forEach((k) => { text = text.replace("{" + k + "}", String(vars[k])); });
+          if (vars) {
+            Object.keys(vars).forEach((name) => {
+              text = text.replace("{" + name + "}", String(vars[name]));
+            });
+          }
           return text;
         }, [locale]);
 
-        React.useEffect(() => {
-          document.documentElement.setAttribute("lang", locale === "zh" ? "zh-CN" : "en");
-        }, [locale]);
-
-        React.useEffect(() => {
-          try {
-            window.localStorage.setItem(LOCALE_STORAGE_KEY, locale);
-          } catch (_) {
-            // Ignore storage write failures (private mode, security policy, etc.)
-          }
-        }, [locale]);
-
-        const trStatus = React.useCallback((v) => {
-          if (v === "ok") return t("statusOk");
-          if (v === "unhealthy") return t("statusUnhealthy");
-          if (v === "not triggered") return t("statusNotTriggered");
-          if (v === "failed") return t("statusFailed");
-          return v || t("unknown");
+        const statusText = React.useCallback((value) => {
+          if (value === "ok") return t("statusOk");
+          if (value === "unhealthy") return t("statusUnhealthy");
+          return value || t("unknown");
         }, [t]);
 
+        React.useEffect(() => {
+          document.documentElement.setAttribute("lang", locale === "zh" ? "zh-CN" : "en");
+          try {
+            window.localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+          } catch (_) {}
+        }, [locale]);
+
         const loadHealth = React.useCallback(async (silent) => {
-          try { const r = await api.health(); setHealth(r.status || "ok"); }
-          catch (e) { setHealth("unhealthy"); if (!silent) message.error(t("healthCheckFailed") + ": " + e.message); }
+          try {
+            const result = await api.health();
+            setHealth(result.status || "ok");
+          } catch (error) {
+            setHealth("unhealthy");
+            if (!silent) message.error(t("healthCheckFailed") + ": " + error.message);
+          }
         }, [message, t]);
 
-        const loadOverview = React.useCallback(async (silent) => {
-          if (!silent) setOverviewLoading(true);
+        const loadMonitor = React.useCallback(async (silent) => {
+          if (!silent) {
+            setOverviewLoading(true);
+            setDetailLoading(true);
+          }
           try {
-            const r = await api.overview(windowDays, topK);
-            setOverview(r || null);
-            setLastOverviewAt(new Date());
-            if (!silent) message.success(t("overviewRefreshed"));
-            setPollingWarn("");
-          } catch (e) {
-            if (silent) setPollingWarn(t("autoRefreshPaused") + ": " + e.message);
-            else message.error(t("overviewFailed") + ": " + e.message);
+            const [overviewResult, detailResult] = await Promise.all([
+              api.overview(windowDays, topK),
+              api.detail(windowDays, topK, sampleSize)
+            ]);
+            setOverview(overviewResult || null);
+            setDetail(detailResult || null);
+            if (!silent) message.success(t("refreshed"));
+          } catch (error) {
+            if (!silent) message.error(t("overviewFailed") + ": " + error.message);
           } finally {
-            if (!silent) setOverviewLoading(false);
+            if (!silent) {
+              setOverviewLoading(false);
+              setDetailLoading(false);
+            }
           }
-        }, [windowDays, topK, message, t]);
+        }, [message, sampleSize, t, topK, windowDays]);
 
-        const loadIntegrity = React.useCallback(async (silent) => {
-          if (!silent) setIntegrityLoading(true);
-          try { const r = await api.integrity(sampleSize); setIntegrity(r || null); if (!silent) message.success(t("integrityRefreshed")); }
-          catch (e) { if (!silent) message.error(t("integrityFailed") + ": " + e.message); }
-          finally { if (!silent) setIntegrityLoading(false); }
-        }, [sampleSize, message, t]);
-
-        const runRecall = React.useCallback(async (showSuccess, silentError) => {
-          const q = query.trim();
-          if (!q) return message.warning(t("queryRequired"));
-          setTableLoading(true);
-          try { const r = await api.recall(q, k); setResults(Array.isArray(r.results) ? r.results : []); setLastRefreshAt(new Date()); if (showSuccess) message.success(t("recallRefreshed")); }
-          catch (e) { if (!silentError) message.error(t("recallFailed") + ": " + e.message); }
-          finally { setTableLoading(false); }
-        }, [query, k, message, t]);
-
-        const runExplain = React.useCallback(async (silentError) => {
-          const q = query.trim();
-          if (!q) return message.warning(t("queryRequired"));
-          setExplainLoading(true);
-          try { const r = await api.explain(q, k); setAccepted(Array.isArray(r.accepted) ? r.accepted : []); setFiltered(Array.isArray(r.filtered) ? r.filtered : []); if (!silentError) message.success(t("explainRefreshed")); }
-          catch (e) { if (!silentError) message.error(t("explainFailed") + ": " + e.message); }
-          finally { setExplainLoading(false); }
-        }, [query, k, message, t]);
-
-        const runDecayWithConfirm = () => Modal.confirm({
-          title: t("applyDecayTitle"),
-          content: t("applyDecayContent"),
-          okText: t("runDecay"),
-          cancelText: t("cancel"),
-          onOk: async () => {
-            try { const r = await api.decay(); setLastDecayStatus(r.status || "decayed"); message.success(t("decayCompleted")); await loadOverview(true); await loadIntegrity(true); }
-            catch (e) { setLastDecayStatus("failed"); message.error(t("decayFailed") + ": " + e.message); }
+        const runWorkbench = React.useCallback(async (silent) => {
+          const trimmed = query.trim();
+          if (!trimmed) {
+            message.warning(t("queryRequired"));
+            return;
           }
-        });
+          setWorkbenchLoading(true);
+          try {
+            const result = await api.workbench(trimmed, k);
+            setWorkbench(result || null);
+            setLastWorkbenchRefresh(new Date());
+            if (!silent) message.success(t("refreshed"));
+          } catch (error) {
+            if (!silent) message.error(t("workbenchFailed") + ": " + error.message);
+          } finally {
+            setWorkbenchLoading(false);
+          }
+        }, [k, message, query, t]);
 
-        React.useEffect(() => { loadHealth(true); loadOverview(true); loadIntegrity(true); runRecall(false, true); runExplain(true); }, [loadHealth, loadOverview, loadIntegrity, runRecall, runExplain]);
         React.useEffect(() => {
-          const timer = window.setInterval(() => { loadHealth(true); loadOverview(true); loadIntegrity(true); runRecall(false, true); }, 30000);
-          return () => window.clearInterval(timer);
-        }, [loadHealth, loadOverview, loadIntegrity, runRecall]);
+          loadHealth(true);
+          loadMonitor(true);
+        }, [loadHealth, loadMonitor]);
 
-        const recallColumns = [
-          { title: t("id"), dataIndex: "id", key: "id", width: 220, render: (v) => <Text code>{String(v || "").slice(0, 16)}</Text> },
+        React.useEffect(() => {
+          const timer = window.setInterval(() => {
+            loadHealth(true);
+            loadMonitor(true);
+          }, 30000);
+          return () => window.clearInterval(timer);
+        }, [loadHealth, loadMonitor]);
+
+        const memoryColumns = [
           { title: t("summary"), dataIndex: "summary", key: "summary", ellipsis: true },
-          { title: t("clarity"), dataIndex: "clarity", key: "clarity", width: 100, render: (v) => Number(v || 0).toFixed(2) },
-          { title: t("score"), dataIndex: "score", key: "score", width: 100, render: (v) => Number(v || 0).toFixed(2) },
-          { title: t("stage"), dataIndex: "decay_stage", key: "decay_stage", width: 130, render: (v) => <Tag color="blue">{v || t("unknown")}</Tag> },
-          { title: "Last Accessed", dataIndex: "last_accessed_at", key: "last_accessed_at", width: 180, render: (v) => (v ? dayjs(v).format("MM-DD HH:mm:ss") : "-") }
+          { title: t("type"), dataIndex: "memory_type", key: "memory_type", width: 120 },
+          { title: t("created"), dataIndex: "created_at", key: "created_at", width: 170, render: (value) => value ? dayjs(value).format("MM-DD HH:mm") : "-" },
+          { title: t("clarity"), dataIndex: "clarity", key: "clarity", width: 90, render: (value) => Number(value || 0).toFixed(2) }
         ];
-        const distributionColumns = [{ title: t("name"), dataIndex: "name", key: "name" }, { title: t("count"), dataIndex: "count", key: "count", width: 90 }];
-        const topNewColumns = [{ title: t("summary"), dataIndex: "summary", key: "summary", ellipsis: true }, { title: t("type"), dataIndex: "memory_type", key: "memory_type", width: 120 }, { title: t("created"), dataIndex: "created_at", key: "created_at", width: 170, render: (v) => (v ? dayjs(v).format("MM-DD HH:mm") : "-") }, { title: t("clarity"), dataIndex: "clarity", key: "clarity", width: 90, render: (v) => Number(v || 0).toFixed(2) }];
-        const topRiskColumns = [{ title: t("summary"), dataIndex: "summary", key: "summary", ellipsis: true }, { title: t("risk"), dataIndex: "risk_score", key: "risk_score", width: 90, render: (v) => Number(v || 0).toFixed(2) }, { title: t("idleDays"), dataIndex: "idle_days", key: "idle_days", width: 90 }, { title: t("stage"), dataIndex: "decay_stage", key: "decay_stage", width: 110 }];
-        const topAccessColumns = [{ title: t("summary"), dataIndex: "summary", key: "summary", ellipsis: true }, { title: t("access"), dataIndex: "access_count", key: "access_count", width: 90 }, { title: t("type"), dataIndex: "memory_type", key: "memory_type", width: 120 }, { title: t("clarity"), dataIndex: "clarity", key: "clarity", width: 90, render: (v) => Number(v || 0).toFixed(2) }];
-        const explainRows = accepted.map((x, i) => ({ key: x.id || i, id: x.id, summary: x.summary || "-", score: Number(x.score || 0).toFixed(2), stage: x.decay_stage || "-" }));
-        const trendPoints = Array.isArray(overview && overview.trend_created_daily) ? overview.trend_created_daily : [];
-        const trendMax = trendPoints.reduce((m, p) => Math.max(m, Number((p && p.count) || 0)), 0);
+
+        const riskColumns = [
+          { title: t("summary"), dataIndex: "summary", key: "summary", ellipsis: true },
+          { title: t("risk"), dataIndex: "risk_score", key: "risk_score", width: 90, render: (value) => Number(value || 0).toFixed(2) },
+          { title: t("idleDays"), dataIndex: "idle_days", key: "idle_days", width: 90 },
+          { title: t("stage"), dataIndex: "decay_stage", key: "decay_stage", width: 120 }
+        ];
+
+        const accessColumns = [
+          { title: t("summary"), dataIndex: "summary", key: "summary", ellipsis: true },
+          { title: t("access"), dataIndex: "access_count", key: "access_count", width: 90 },
+          { title: t("type"), dataIndex: "memory_type", key: "memory_type", width: 120 },
+          { title: t("clarity"), dataIndex: "clarity", key: "clarity", width: 90, render: (value) => Number(value || 0).toFixed(2) }
+        ];
+
+        const imageColumns = [
+          { title: t("summary"), dataIndex: "caption", key: "caption", ellipsis: true },
+          { title: t("file"), dataIndex: "file_path", key: "file_path", ellipsis: true, render: (_, row) => row.file_path || row.url || row.id },
+          { title: t("linkCount"), dataIndex: "link_count", key: "link_count", width: 100 },
+          { title: t("created"), dataIndex: "created_at", key: "created_at", width: 170, render: (value) => value ? dayjs(value).format("MM-DD HH:mm") : "-" }
+        ];
+
+        const entityColumns = [
+          { title: t("name"), dataIndex: "display_name", key: "display_name", ellipsis: true, render: (_, row) => row.display_name || row.canonical_name || row.id },
+          { title: t("type"), dataIndex: "entity_type", key: "entity_type", width: 120 },
+          { title: t("count"), dataIndex: "memory_count", key: "memory_count", width: 90 }
+        ];
+
+        const distributionColumns = [
+          { title: t("name"), dataIndex: "name", key: "name" },
+          { title: t("count"), dataIndex: "count", key: "count", width: 90 }
+        ];
+
+        const mixedColumns = [
+          { title: t("objectType"), dataIndex: "object_type", key: "object_type", width: 120, render: (value) => <Tag color={value === "memory" ? "blue" : value === "image" ? "gold" : "purple"}>{value || t("unknown")}</Tag> },
+          { title: t("title"), dataIndex: "title", key: "title", ellipsis: true },
+          { title: t("summary"), dataIndex: "summary", key: "summary", ellipsis: true },
+          { title: t("score"), dataIndex: "score", key: "score", width: 90, render: (value) => Number(value || 0).toFixed(2) }
+        ];
+
+        const workbenchMemoryColumns = [
+          { title: t("summary"), dataIndex: "summary", key: "summary", ellipsis: true },
+          { title: t("score"), dataIndex: "score", key: "score", width: 90, render: (value) => Number(value || 0).toFixed(2) },
+          { title: t("stage"), dataIndex: "decay_stage", key: "decay_stage", width: 120 }
+        ];
+
+        const workbenchImageColumns = [
+          { title: t("summary"), dataIndex: "caption", key: "caption", ellipsis: true },
+          { title: t("score"), dataIndex: "score", key: "score", width: 90, render: (value) => Number(value || 0).toFixed(2) },
+          { title: t("sourceSession"), dataIndex: "source_session", key: "source_session", width: 150 }
+        ];
+
+        const workbenchEntityColumns = [
+          { title: t("name"), dataIndex: "display_name", key: "display_name", ellipsis: true, render: (_, row) => row.display_name || row.canonical_name || row.id },
+          { title: t("type"), dataIndex: "entity_type", key: "entity_type", width: 120 },
+          { title: t("count"), dataIndex: "memory_count", key: "memory_count", width: 90 }
+        ];
+
+        const overviewIntegrity = detail && detail.integrity ? detail.integrity : null;
+        const imageStats = detail && detail.images ? detail.images : null;
+        const entityStats = detail && detail.entities ? detail.entities : null;
+        const mixedResults = workbench && Array.isArray(workbench.mixed) ? workbench.mixed : [];
+        const workbenchMemories = workbench && Array.isArray(workbench.memories) ? workbench.memories : [];
+        const workbenchImages = workbench && Array.isArray(workbench.images) ? workbench.images : [];
+        const workbenchEntities = workbench && Array.isArray(workbench.entities) ? workbench.entities : [];
+        const explain = workbench && workbench.explain ? workbench.explain : null;
 
         const tabItems = [
           {
@@ -367,27 +432,26 @@
             children: (
               <Space direction="vertical" size={16} style={{ width: "100%" }}>
                 <Row gutter={[16, 16]}>
-                  <Col xs={24} sm={12} lg={6}><Card loading={overviewLoading}><Statistic title={t("serviceHealth")} value={trStatus(health)} /></Card></Col>
+                  <Col xs={24} sm={12} lg={6}><Card loading={overviewLoading}><Statistic title={t("serviceHealth")} value={statusText(health)} /></Card></Col>
                   <Col xs={24} sm={12} lg={6}><Card loading={overviewLoading}><Statistic title={t("totalMemories")} value={overview ? overview.total_memories || 0 : 0} /></Card></Col>
-                  <Col xs={24} sm={12} lg={6}><Card loading={overviewLoading}><Statistic title={t("newWindow", { days: windowDays })} value={overview ? overview.new_memories_window || 0 : 0} /></Card></Col>
-                  <Col xs={24} sm={12} lg={6}><Card loading={overviewLoading}><Statistic title={t("avgClarity")} value={overview ? Number((overview.quality || {}).avg_clarity || 0).toFixed(2) : "0.00"} /></Card></Col>
+                  <Col xs={24} sm={12} lg={6}><Card loading={detailLoading}><Statistic title={t("totalImages")} value={imageStats ? imageStats.total_images || 0 : 0} /></Card></Col>
+                  <Col xs={24} sm={12} lg={6}><Card loading={detailLoading}><Statistic title={t("totalEntities")} value={entityStats ? entityStats.total_entities || 0 : 0} /></Card></Col>
                 </Row>
                 <Row gutter={[16, 16]}>
-                  <Col xs={24} sm={12} lg={6}><Card loading={overviewLoading}><Statistic title={t("newToday")} value={overview ? overview.new_memories_today || 0 : 0} /></Card></Col>
-                  <Col xs={24} sm={12} lg={6}><Card loading={overviewLoading}><Statistic title={t("newYesterday")} value={overview ? overview.new_memories_yesterday || 0 : 0} /></Card></Col>
-                  <Col xs={24} sm={12} lg={6}><Card loading={overviewLoading}><Statistic title={t("dayGrowth")} value={overview ? Number(overview.growth_rate_day_over_day || 0).toFixed(1) : "0.0"} /></Card></Col>
-                  <Col xs={24} sm={12} lg={6}><Card loading={overviewLoading}><Statistic title={t("highDecayRisk")} value={overview ? overview.high_decay_risk_count || 0 : 0} /></Card></Col>
+                  <Col xs={24} sm={8}><Card loading={overviewLoading}><Statistic title={t("avgClarity")} value={overview ? Number((overview.quality || {}).avg_clarity || 0).toFixed(2) : "0.00"} /></Card></Col>
+                  <Col xs={24} sm={8}><Card loading={detailLoading}><Statistic title={t("captionCoverage")} value={imageStats ? ratioPercent(imageStats.caption_coverage || 0).toFixed(1) : "0.0"} suffix="%" /></Card></Col>
+                  <Col xs={24} sm={8}><Card loading={detailLoading}><Statistic title={t("ocrCoverage")} value={imageStats ? ratioPercent(imageStats.ocr_coverage || 0).toFixed(1) : "0.0"} suffix="%" /></Card></Col>
                 </Row>
-                <Card title={t("healthSummary")} loading={integrityLoading}>
+                <Card title={t("healthSummary")} loading={detailLoading}>
                   <Descriptions size="small" column={2}>
-                    <Descriptions.Item label={t("backend")}>{(integrity && integrity.vector_backend) || "-"}</Descriptions.Item>
-                    <Descriptions.Item label={t("integrityStatus")}><Tag color={integrity && integrity.status === "ok" ? "green" : "orange"}>{(integrity && integrity.status) || t("unknown")}</Tag></Descriptions.Item>
-                    <Descriptions.Item label={t("sqlTotal")}>{(integrity && integrity.sql_total) || 0}</Descriptions.Item>
-                    <Descriptions.Item label={t("vectorTotal")}>{integrity && integrity.vector_total >= 0 ? integrity.vector_total : t("nA")}</Descriptions.Item>
-                    <Descriptions.Item label={t("sampleChecked")}>{(integrity && integrity.sample_checked) || 0}</Descriptions.Item>
-                    <Descriptions.Item label={t("missingInVector")}>{(integrity && integrity.missing_in_vector) || 0}</Descriptions.Item>
-                    <Descriptions.Item label={t("lastOverviewRefresh")}>{lastOverviewAt ? dayjs(lastOverviewAt).format("YYYY-MM-DD HH:mm:ss") : "-"}</Descriptions.Item>
-                    <Descriptions.Item label={t("pollingStatus")}>{pollingWarn ? <Tag color="orange">{pollingWarn}</Tag> : <Tag color="green">{t("healthy")}</Tag>}</Descriptions.Item>
+                    <Descriptions.Item label={t("backend")}>{overviewIntegrity ? overviewIntegrity.vector_backend : "-"}</Descriptions.Item>
+                    <Descriptions.Item label={t("integrityStatus")}><Tag color={overviewIntegrity && overviewIntegrity.status === "ok" ? "green" : "orange"}>{overviewIntegrity ? overviewIntegrity.status : t("unknown")}</Tag></Descriptions.Item>
+                    <Descriptions.Item label={t("sqlTotal")}>{overviewIntegrity ? overviewIntegrity.sql_total || 0 : 0}</Descriptions.Item>
+                    <Descriptions.Item label={t("vectorTotal")}>{overviewIntegrity && overviewIntegrity.vector_total >= 0 ? overviewIntegrity.vector_total : "-"}</Descriptions.Item>
+                    <Descriptions.Item label={t("missingInVector")}>{overviewIntegrity ? overviewIntegrity.missing_in_vector || 0 : 0}</Descriptions.Item>
+                    <Descriptions.Item label={t("brokenFilePaths")}>{imageStats ? imageStats.broken_file_paths || 0 : 0}</Descriptions.Item>
+                    <Descriptions.Item label={t("orphanImages")}>{imageStats ? imageStats.orphan_images || 0 : 0}</Descriptions.Item>
+                    <Descriptions.Item label={t("linkedCoverage")}>{imageStats ? ratioPercent(imageStats.linked_coverage || 0).toFixed(1) + "%" : "0.0%"}</Descriptions.Item>
                   </Descriptions>
                 </Card>
               </Space>
@@ -399,37 +463,25 @@
             children: (
               <Space direction="vertical" size={16} style={{ width: "100%" }}>
                 <Row gutter={[16, 16]}>
-                  <Col xs={24} lg={8}><Card title={t("topNew", { topK })} loading={overviewLoading}><Table size="small" columns={topNewColumns} dataSource={overview ? overview.top_new_memories || [] : []} pagination={false} rowKey={(r, i) => r.id || i} /></Card></Col>
-                  <Col xs={24} lg={8}><Card title={t("topRisk", { topK })} loading={overviewLoading}><Table size="small" columns={topRiskColumns} dataSource={overview ? overview.top_decay_risk_memories || [] : []} pagination={false} rowKey={(r, i) => r.id || i} /></Card></Col>
-                  <Col xs={24} lg={8}><Card title={t("topAccess", { topK })} loading={overviewLoading}><Table size="small" columns={topAccessColumns} dataSource={overview ? overview.top_accessed_memories || [] : []} pagination={false} rowKey={(r, i) => r.id || i} /></Card></Col>
+                  <Col xs={24} lg={8}><Card title={t("topNew", { topK: topK })} loading={detailLoading}><Table size="small" pagination={false} columns={memoryColumns} dataSource={detail && detail.overview ? detail.overview.top_new_memories || [] : []} rowKey={(row, idx) => row.id || idx} locale={{ emptyText: t("noData") }} /></Card></Col>
+                  <Col xs={24} lg={8}><Card title={t("topRisk", { topK: topK })} loading={detailLoading}><Table size="small" pagination={false} columns={riskColumns} dataSource={detail && detail.overview ? detail.overview.top_decay_risk_memories || [] : []} rowKey={(row, idx) => row.id || idx} locale={{ emptyText: t("noData") }} /></Card></Col>
+                  <Col xs={24} lg={8}><Card title={t("topAccess", { topK: topK })} loading={detailLoading}><Table size="small" pagination={false} columns={accessColumns} dataSource={detail && detail.overview ? detail.overview.top_accessed_memories || [] : []} rowKey={(row, idx) => row.id || idx} locale={{ emptyText: t("noData") }} /></Card></Col>
                 </Row>
                 <Row gutter={[16, 16]}>
-                  <Col xs={24} lg={8}><Card title={t("lifecycleDistribution")} loading={overviewLoading}><Table size="small" pagination={false} columns={distributionColumns} dataSource={mapToRows(overview ? overview.by_lifecycle_state : null)} /></Card></Col>
-                  <Col xs={24} lg={8}><Card title={t("decayStageDistribution")} loading={overviewLoading}><Table size="small" pagination={false} columns={distributionColumns} dataSource={mapToRows(overview ? overview.by_decay_stage : null)} /></Card></Col>
-                  <Col xs={24} lg={8}><Card title={t("memoryTypeDistribution")} loading={overviewLoading}><Table size="small" pagination={false} columns={distributionColumns} dataSource={mapToRows(overview ? overview.by_memory_type : null)} /></Card></Col>
+                  <Col xs={24} lg={8}><Card title={t("topRecentImages", { topK: topK })} loading={detailLoading}><Table size="small" pagination={false} columns={imageColumns} dataSource={imageStats ? imageStats.top_recent_images || [] : []} rowKey={(row, idx) => row.id || idx} locale={{ emptyText: t("noData") }} /></Card></Col>
+                  <Col xs={24} lg={8}><Card title={t("topLinkedImages", { topK: topK })} loading={detailLoading}><Table size="small" pagination={false} columns={imageColumns} dataSource={imageStats ? imageStats.top_linked_images || [] : []} rowKey={(row, idx) => row.id || idx} locale={{ emptyText: t("noData") }} /></Card></Col>
+                  <Col xs={24} lg={8}><Card title={t("topEntities", { topK: topK })} loading={detailLoading}><Table size="small" pagination={false} columns={entityColumns} dataSource={entityStats ? entityStats.top_entities || [] : []} rowKey={(row, idx) => row.id || idx} locale={{ emptyText: t("noData") }} /></Card></Col>
                 </Row>
-                <Card title={t("createdTrend", { days: windowDays })} loading={overviewLoading}>
-                  {!trendPoints.length ? (
-                    <Text type="secondary">{t("noTrendData")}</Text>
-                  ) : (
-                    <div className="trend-chart">
-                      <div className="trend-bars">
-                        {trendPoints.map((p) => {
-                          const count = Number((p && p.count) || 0);
-                          const height = trendMax > 0 ? Math.max(4, Math.round((count / trendMax) * 180)) : 4;
-                          const dateLabel = String((p && p.date) || "").slice(5);
-                          return (
-                            <div className="trend-item" key={p.date}>
-                              <div className="trend-count">{count}</div>
-                              <div className="trend-bar" style={{ height: height + "px" }} title={String(p.date) + ": " + count} />
-                              <div className="trend-date">{dateLabel}</div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </Card>
+                <Row gutter={[16, 16]}>
+                  <Col xs={24} lg={12}><Card title={t("createdTrend", { days: windowDays })} loading={detailLoading}><TrendChart points={detail && detail.overview ? detail.overview.trend_created_daily : []} emptyText={t("noTrendData")} /></Card></Col>
+                  <Col xs={24} lg={12}><Card title={t("imageTrend", { days: windowDays })} loading={detailLoading}><TrendChart points={imageStats ? imageStats.trend_created_daily : []} emptyText={t("noTrendData")} /></Card></Col>
+                </Row>
+                <Row gutter={[16, 16]}>
+                  <Col xs={24} lg={6}><Card title={t("memoryTypeDistribution")} loading={detailLoading}><Table size="small" pagination={false} columns={distributionColumns} dataSource={mapToRows(detail && detail.overview ? detail.overview.by_memory_type : null)} locale={{ emptyText: t("noData") }} /></Card></Col>
+                  <Col xs={24} lg={6}><Card title={t("lifecycleDistribution")} loading={detailLoading}><Table size="small" pagination={false} columns={distributionColumns} dataSource={mapToRows(detail && detail.overview ? detail.overview.by_lifecycle_state : null)} locale={{ emptyText: t("noData") }} /></Card></Col>
+                  <Col xs={24} lg={6}><Card title={t("decayStageDistribution")} loading={detailLoading}><Table size="small" pagination={false} columns={distributionColumns} dataSource={mapToRows(detail && detail.overview ? detail.overview.by_decay_stage : null)} locale={{ emptyText: t("noData") }} /></Card></Col>
+                  <Col xs={24} lg={6}><Card title={t("imageSourceDistribution")} loading={detailLoading}><Table size="small" pagination={false} columns={distributionColumns} dataSource={mapToRows(imageStats ? imageStats.by_source_kind : null)} locale={{ emptyText: t("noData") }} /></Card></Col>
+                </Row>
               </Space>
             )
           },
@@ -438,27 +490,40 @@
             label: t("workbench"),
             children: (
               <Space direction="vertical" size={16} style={{ width: "100%" }}>
-                <Row gutter={[16, 16]}>
-                  <Col xs={24} sm={12} lg={6}><Card><Statistic title={t("lastRefresh")} value={lastRefreshAt ? dayjs(lastRefreshAt).format("HH:mm:ss") : "-"} /></Card></Col>
-                  <Col xs={24} sm={12} lg={6}><Card><Statistic title={t("recallHits")} value={results.length} /></Card></Col>
-                  <Col xs={24} sm={12} lg={6}><Card><Statistic title={t("lastDecayStatus")} value={trStatus(lastDecayStatus)} /></Card></Col>
-                  <Col xs={24} sm={12} lg={6}><Card><Statistic title={t("needGrounding")} value={overview ? (overview.quality || {}).needs_grounding_count || 0 : 0} /></Card></Col>
-                </Row>
-                <Card title={t("recallObservatory")}>
-                  <Space style={{ marginBottom: 16 }} wrap>
-                    <Input placeholder={t("query")} value={query} onChange={(e) => setQuery(e.target.value)} style={{ width: 320 }} />
-                    <Select value={k} onChange={setK} style={{ width: 100 }} options={[3, 5, 10, 20].map((v) => ({ value: v, label: "k=" + v }))} />
-                    <Button type="primary" loading={tableLoading} onClick={() => runRecall(true, false)}>{t("runRecall")}</Button>
-                    <Button loading={explainLoading} onClick={() => runExplain(false)}>{t("runExplain")}</Button>
-                    <Button danger onClick={runDecayWithConfirm}>{t("decayAll")}</Button>
+                <Card title={t("workbenchTitle")}>
+                  <Space wrap style={{ marginBottom: 16 }}>
+                    <Input placeholder={t("query")} value={query} onChange={(event) => setQuery(event.target.value)} style={{ width: 360 }} onPressEnter={() => runWorkbench(false)} />
+                    <Select value={k} onChange={setK} style={{ width: 100 }} options={[3, 5, 10, 20].map((value) => ({ value: value, label: "k=" + value }))} />
+                    <Button type="primary" loading={workbenchLoading} onClick={() => runWorkbench(false)}>{t("searchAll")}</Button>
                   </Space>
-                  <Table size="small" rowKey={(r, i) => r.id || i} loading={tableLoading} columns={recallColumns} dataSource={results} pagination={{ pageSize: 8 }} scroll={{ x: 980 }} />
+                  <Row gutter={[16, 16]}>
+                    <Col xs={24} sm={12} lg={6}><Statistic title={t("lastRefresh")} value={lastWorkbenchRefresh ? dayjs(lastWorkbenchRefresh).format("HH:mm:ss") : "-"} /></Col>
+                    <Col xs={24} sm={12} lg={6}><Statistic title={t("mixedResults")} value={mixedResults.length} /></Col>
+                    <Col xs={24} sm={12} lg={6}><Statistic title={t("memoryResults")} value={workbenchMemories.length} /></Col>
+                    <Col xs={24} sm={12} lg={6}><Statistic title={t("imageResults")} value={workbenchImages.length} /></Col>
+                  </Row>
                 </Card>
-                <Card title={t("explainSnapshot")}>
-                  <Tabs items={[
-                    { key: "accepted", label: t("accepted") + " (" + accepted.length + ")", children: <Table size="small" rowKey="key" columns={[{ title: t("id"), dataIndex: "id", key: "id", width: 220 }, { title: t("summary"), dataIndex: "summary", key: "summary" }, { title: t("score"), dataIndex: "score", key: "score", width: 90 }, { title: t("stage"), dataIndex: "stage", key: "stage", width: 120 }]} dataSource={explainRows} pagination={{ pageSize: 5 }} scroll={{ x: 780 }} /> },
-                    { key: "filtered", label: t("filtered") + " (" + filtered.length + ")", children: <pre style={{ margin: 0, whiteSpace: "pre-wrap" }}>{JSON.stringify(filtered, null, 2)}</pre> }
-                  ]} />
+                <Card title={t("mixedResults")} loading={workbenchLoading}>
+                  <Table size="small" columns={mixedColumns} dataSource={mixedResults} rowKey={(row, idx) => row.object_type + ":" + (row.id || idx)} pagination={{ pageSize: 8 }} locale={{ emptyText: t("noData") }} />
+                </Card>
+                <Row gutter={[16, 16]}>
+                  <Col xs={24} lg={12}><Card title={t("memoryResults")} loading={workbenchLoading}><Table size="small" columns={workbenchMemoryColumns} dataSource={workbenchMemories} rowKey={(row, idx) => row.id || idx} pagination={{ pageSize: 5 }} locale={{ emptyText: t("noData") }} /></Card></Col>
+                  <Col xs={24} lg={12}><Card title={t("imageResults")} loading={workbenchLoading}><Table size="small" columns={workbenchImageColumns} dataSource={workbenchImages} rowKey={(row, idx) => row.id || idx} pagination={{ pageSize: 5 }} locale={{ emptyText: t("noData") }} /></Card></Col>
+                </Row>
+                <Card title={t("entityResults")} loading={workbenchLoading}>
+                  <Table size="small" columns={workbenchEntityColumns} dataSource={workbenchEntities} rowKey={(row, idx) => row.id || idx} pagination={{ pageSize: 6 }} locale={{ emptyText: t("noData") }} />
+                </Card>
+                <Card title={t("explainSummary")} loading={workbenchLoading}>
+                  {!explain ? (
+                    <Text type="secondary">{t("noData")}</Text>
+                  ) : (
+                    <Descriptions size="small" column={2}>
+                      <Descriptions.Item label={t("query")}>{explain.query || "-"}</Descriptions.Item>
+                      <Descriptions.Item label={t("accepted")}>{Array.isArray(explain.accepted) ? explain.accepted.length : 0}</Descriptions.Item>
+                      <Descriptions.Item label={t("filtered")}>{Array.isArray(explain.filtered) ? explain.filtered.length : 0}</Descriptions.Item>
+                      <Descriptions.Item label={t("lastRefresh")}>{lastWorkbenchRefresh ? dayjs(lastWorkbenchRefresh).format("YYYY-MM-DD HH:mm:ss") : "-"}</Descriptions.Item>
+                    </Descriptions>
+                  )}
                 </Card>
               </Space>
             )
@@ -473,8 +538,8 @@
                 <Text style={{ color: "#fff" }}>{t("language")}</Text>
                 <Select size="small" value={locale} onChange={setLocale} style={{ width: 92 }} options={[{ value: "en", label: "EN" }, { value: "zh", label: "中文" }]} />
                 <Button onClick={() => loadHealth(false)}>{t("healthCheck")}</Button>
-                <Button loading={overviewLoading || integrityLoading} onClick={() => { loadOverview(false); loadIntegrity(false); }}>{t("refreshMonitor")}</Button>
-                <Button type="primary" loading={tableLoading} onClick={() => runRecall(true, false)}>{t("refreshWorkbench")}</Button>
+                <Button loading={overviewLoading || detailLoading} onClick={() => loadMonitor(false)}>{t("refreshMonitor")}</Button>
+                <Button type="primary" loading={workbenchLoading} onClick={() => runWorkbench(false)}>{t("refreshWorkbench")}</Button>
               </Space>
             </Header>
             <Content style={{ padding: 24 }}>
@@ -485,1621 +550,6 @@
       }
 
       ReactDOM.createRoot(document.getElementById("root")).render(<App><Dashboard /></App>);
-    </script>
-  </body>
-</html>
-<!--
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Echo Fade Memory Dashboard</title>
-    <link rel="stylesheet" href="https://unpkg.com/antd@5/dist/reset.css" />
-    <style>
-      body {
-        margin: 0;
-        background: #f5f7fa;
-      }
-      #root {
-        min-height: 100vh;
-      }
-      .app-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 16px;
-      }
-      .app-header-title {
-        color: #fff;
-        margin: 0;
-        font-size: 18px;
-        font-weight: 600;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="root"></div>
-
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/dayjs@1/dayjs.min.js"></script>
-    <script src="https://unpkg.com/antd@5/dist/antd.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-    <script type="text/babel">
-      const { App, Button, Card, Col, Descriptions, Input, Layout, Modal, Row, Select, Space, Statistic, Table, Tag, Tabs, Typography } = antd;
-      const { Header, Content } = Layout;
-      const { Text } = Typography;
-
-      const I18N = {
-        en: {
-          healthCheckFailed: "health check failed",
-          overviewRefreshed: "overview refreshed",
-          overviewFailed: "overview failed",
-          integrityRefreshed: "integrity refreshed",
-          integrityFailed: "integrity failed",
-          queryRequired: "query required",
-          recallRefreshed: "recall refreshed",
-          recallFailed: "recall failed",
-          explainRefreshed: "explain refreshed",
-          explainFailed: "explain failed",
-          decayCompleted: "decay completed",
-          decayFailed: "decay failed",
-          autoRefreshPaused: "Auto refresh paused",
-          applyDecayTitle: "Apply decay to all memories?",
-          applyDecayContent: "This operation recalculates decay for all memories.",
-          runDecay: "Run decay",
-          cancel: "Cancel",
-          dashboardTitle: "Echo Fade Memory Dashboard",
-          healthCheck: "Health Check",
-          refreshMonitor: "Refresh Monitor",
-          refreshWorkbench: "Refresh Workbench",
-          language: "Language",
-          overview: "Overview",
-          detail: "Detail",
-          workbench: "Workbench",
-          serviceHealth: "Service Health",
-          totalMemories: "Total Memories",
-          newWindow: "New ({days}d)",
-          avgClarity: "Avg Clarity",
-          newToday: "New Today",
-          newYesterday: "New Yesterday",
-          dayGrowth: "Day Growth %",
-          highDecayRisk: "High Decay Risk",
-          healthSummary: "Health Summary",
-          backend: "Backend",
-          integrityStatus: "Integrity Status",
-          sqlTotal: "SQL Total",
-          vectorTotal: "Vector Total",
-          sampleChecked: "Sample Checked",
-          missingInVector: "Missing In Vector",
-          lastOverviewRefresh: "Last Overview Refresh",
-          pollingStatus: "Polling Status",
-          healthy: "healthy",
-          topNew: "Top{topK} New Memories",
-          topRisk: "Top{topK} Decay Risk",
-          topAccess: "Top{topK} Most Accessed",
-          lifecycleDistribution: "Lifecycle Distribution",
-          decayStageDistribution: "Decay Stage Distribution",
-          memoryTypeDistribution: "Memory Type Distribution",
-          createdTrend: "Created Trend ({days}d)",
-          id: "ID",
-          summary: "Summary",
-          type: "Type",
-          created: "Created",
-          clarity: "Clarity",
-          score: "Score",
-          risk: "Risk",
-          idleDays: "Idle Days",
-          stage: "Stage",
-          access: "Access",
-          name: "Name",
-          count: "Count",
-          date: "Date",
-          recallObservatory: "Recall Observatory",
-          query: "query",
-          runRecall: "Run Recall",
-          runExplain: "Run Explain",
-          decayAll: "Decay All",
-          explainSnapshot: "Explain Snapshot",
-          accepted: "Accepted",
-          filtered: "Filtered",
-          lastRefresh: "Last Refresh",
-          recallHits: "Recall Hits",
-          lastDecayStatus: "Last Decay Status",
-          needGrounding: "Need Grounding",
-          unknown: "unknown",
-          nA: "n/a",
-          statusOk: "ok",
-          statusUnhealthy: "unhealthy",
-          statusNotTriggered: "not triggered",
-          statusFailed: "failed"
-        },
-        zh: {
-          healthCheckFailed: "健康检查失败",
-          overviewRefreshed: "总览已刷新",
-          overviewFailed: "总览请求失败",
-          integrityRefreshed: "一致性已刷新",
-          integrityFailed: "一致性请求失败",
-          queryRequired: "请输入查询词",
-          recallRefreshed: "召回已刷新",
-          recallFailed: "召回失败",
-          explainRefreshed: "解释已刷新",
-          explainFailed: "解释失败",
-          decayCompleted: "衰减执行完成",
-          decayFailed: "衰减执行失败",
-          autoRefreshPaused: "自动刷新已暂停",
-          applyDecayTitle: "确认对全部记忆执行衰减？",
-          applyDecayContent: "该操作会重算所有记忆的衰减状态。",
-          runDecay: "执行衰减",
-          cancel: "取消",
-          dashboardTitle: "Echo Fade Memory 控制台",
-          healthCheck: "健康检查",
-          refreshMonitor: "刷新监控",
-          refreshWorkbench: "刷新工作台",
-          language: "语言",
-          overview: "总览",
-          detail: "明细",
-          workbench: "工作台",
-          serviceHealth: "服务健康",
-          totalMemories: "记忆总量",
-          newWindow: "新增（{days}天）",
-          avgClarity: "平均清晰度",
-          newToday: "今日新增",
-          newYesterday: "昨日新增",
-          dayGrowth: "日环比 %",
-          highDecayRisk: "高衰减风险",
-          healthSummary: "健康摘要",
-          backend: "后端",
-          integrityStatus: "一致性状态",
-          sqlTotal: "SQL 总数",
-          vectorTotal: "向量总数",
-          sampleChecked: "抽样检查数",
-          missingInVector: "向量缺失数",
-          lastOverviewRefresh: "总览刷新时间",
-          pollingStatus: "轮询状态",
-          healthy: "正常",
-          topNew: "最近新增 Top{topK}",
-          topRisk: "衰减风险 Top{topK}",
-          topAccess: "高频访问 Top{topK}",
-          lifecycleDistribution: "生命周期分布",
-          decayStageDistribution: "衰减阶段分布",
-          memoryTypeDistribution: "记忆类型分布",
-          createdTrend: "新增趋势（{days}天）",
-          id: "ID",
-          summary: "摘要",
-          type: "类型",
-          created: "创建时间",
-          clarity: "清晰度",
-          score: "分数",
-          risk: "风险值",
-          idleDays: "闲置天数",
-          stage: "阶段",
-          access: "访问次数",
-          name: "名称",
-          count: "数量",
-          date: "日期",
-          recallObservatory: "召回观测台",
-          query: "查询词",
-          runRecall: "执行召回",
-          runExplain: "执行解释",
-          decayAll: "全量衰减",
-          explainSnapshot: "Explain 快照",
-          accepted: "通过",
-          filtered: "过滤",
-          lastRefresh: "最近刷新",
-          recallHits: "召回命中",
-          lastDecayStatus: "最近衰减状态",
-          needGrounding: "需溯源数量",
-          unknown: "未知",
-          nA: "无",
-          statusOk: "正常",
-          statusUnhealthy: "异常",
-          statusNotTriggered: "未执行",
-          statusFailed: "失败"
-        }
-      };
-
-      const fetchJSON = async (url, options) => {
-        const response = await fetch(url, options);
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          const errMsg = payload && payload.error ? payload.error : "request failed";
-          throw new Error(errMsg);
-        }
-        return payload;
-      };
-
-      const getHealth = () => fetchJSON("/v1/healthz");
-      const getOverview = (windowDays, topK) =>
-        fetchJSON("/v1/stats/overview?window_days=" + encodeURIComponent(windowDays) + "&top_k=" + encodeURIComponent(topK));
-      const getIntegrity = (sampleSize) =>
-        fetchJSON("/v1/stats/integrity?sample_size=" + encodeURIComponent(sampleSize));
-      const recallMemories = (q, k) =>
-        fetchJSON("/v1/memories?q=" + encodeURIComponent(q) + "&k=" + encodeURIComponent(k));
-      const explainMemories = (q, k) =>
-        fetchJSON("/v1/memories/explain", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: q, k: Number(k) })
-        });
-      const decayAll = () =>
-        fetchJSON("/v1/memories/decay", { method: "POST", headers: { "Content-Type": "application/json" } });
-
-      const mapToRows = (obj) =>
-        Object.entries(obj || {}).map(([key, value]) => ({ key, name: key, count: Number(value || 0) })).sort((a, b) => b.count - a.count);
-
-      const Dashboard = () => {
-        const { message } = App.useApp();
-        const [locale, setLocale] = React.useState("en");
-        const [activeTab, setActiveTab] = React.useState("overview");
-        const [windowDays] = React.useState(30);
-        const [sampleSize] = React.useState(200);
-        const [topK] = React.useState(10);
-
-        const [query, setQuery] = React.useState("project");
-        const [k, setK] = React.useState(5);
-        const [health, setHealth] = React.useState("unknown");
-        const [lastRefreshAt, setLastRefreshAt] = React.useState(null);
-        const [lastOverviewAt, setLastOverviewAt] = React.useState(null);
-        const [lastDecayStatus, setLastDecayStatus] = React.useState("not triggered");
-        const [tableLoading, setTableLoading] = React.useState(false);
-        const [explainLoading, setExplainLoading] = React.useState(false);
-        const [overviewLoading, setOverviewLoading] = React.useState(false);
-        const [integrityLoading, setIntegrityLoading] = React.useState(false);
-        const [pollingWarn, setPollingWarn] = React.useState("");
-        const [results, setResults] = React.useState([]);
-        const [accepted, setAccepted] = React.useState([]);
-        const [filtered, setFiltered] = React.useState([]);
-        const [overview, setOverview] = React.useState(null);
-        const [integrity, setIntegrity] = React.useState(null);
-
-        const t = React.useCallback((key, vars) => {
-          const dict = I18N[locale] || I18N.en;
-          let text = dict[key] || I18N.en[key] || key;
-          if (vars) {
-            Object.keys(vars).forEach((k) => {
-              text = text.replace("{" + k + "}", String(vars[k]));
-            });
-          }
-          return text;
-        }, [locale]);
-
-        React.useEffect(() => {
-          document.documentElement.setAttribute("lang", locale === "zh" ? "zh-CN" : "en");
-        }, [locale]);
-
-        const trStatus = React.useCallback((v) => {
-          if (v === "ok") return t("statusOk");
-          if (v === "unhealthy") return t("statusUnhealthy");
-          if (v === "not triggered") return t("statusNotTriggered");
-          if (v === "failed") return t("statusFailed");
-          return v || t("unknown");
-        }, [t]);
-
-        const loadHealth = React.useCallback(async (silent) => {
-          try {
-            const res = await getHealth();
-            setHealth(res.status || "ok");
-          } catch (err) {
-            setHealth("unhealthy");
-            if (!silent) message.error(t("healthCheckFailed") + ": " + err.message);
-          }
-        }, [message, t]);
-
-        const loadOverview = React.useCallback(async (silent) => {
-          if (!silent) setOverviewLoading(true);
-          try {
-            const res = await getOverview(windowDays, topK);
-            setOverview(res || null);
-            setLastOverviewAt(new Date());
-            if (!silent) message.success(t("overviewRefreshed"));
-            setPollingWarn("");
-          } catch (err) {
-            if (silent) setPollingWarn(t("autoRefreshPaused") + ": " + err.message);
-            else message.error(t("overviewFailed") + ": " + err.message);
-          } finally {
-            if (!silent) setOverviewLoading(false);
-          }
-        }, [windowDays, topK, message, t]);
-
-        const loadIntegrity = React.useCallback(async (silent) => {
-          if (!silent) setIntegrityLoading(true);
-          try {
-            const res = await getIntegrity(sampleSize);
-            setIntegrity(res || null);
-            if (!silent) message.success(t("integrityRefreshed"));
-          } catch (err) {
-            if (!silent) message.error(t("integrityFailed") + ": " + err.message);
-          } finally {
-            if (!silent) setIntegrityLoading(false);
-          }
-        }, [sampleSize, message, t]);
-
-        const runRecall = React.useCallback(async (showSuccess, silentError) => {
-          const q = query.trim();
-          if (!q) {
-            message.warning(t("queryRequired"));
-            return;
-          }
-          setTableLoading(true);
-          try {
-            const res = await recallMemories(q, k);
-            const items = Array.isArray(res.results) ? res.results : [];
-            setResults(items);
-            setLastRefreshAt(new Date());
-            if (showSuccess) message.success(t("recallRefreshed"));
-          } catch (err) {
-            if (!silentError) message.error(t("recallFailed") + ": " + err.message);
-          } finally {
-            setTableLoading(false);
-          }
-        }, [query, k, message, t]);
-
-        const runExplain = React.useCallback(async (silentError) => {
-          const q = query.trim();
-          if (!q) {
-            message.warning(t("queryRequired"));
-            return;
-          }
-          setExplainLoading(true);
-          try {
-            const res = await explainMemories(q, k);
-            setAccepted(Array.isArray(res.accepted) ? res.accepted : []);
-            setFiltered(Array.isArray(res.filtered) ? res.filtered : []);
-            if (!silentError) message.success(t("explainRefreshed"));
-          } catch (err) {
-            if (!silentError) message.error(t("explainFailed") + ": " + err.message);
-          } finally {
-            setExplainLoading(false);
-          }
-        }, [query, k, message, t]);
-
-        const runDecayWithConfirm = () => {
-          Modal.confirm({
-            title: t("applyDecayTitle"),
-            content: t("applyDecayContent"),
-            okText: t("runDecay"),
-            cancelText: t("cancel"),
-            onOk: async () => {
-              try {
-                const res = await decayAll();
-                setLastDecayStatus(res.status || "decayed");
-                message.success(t("decayCompleted"));
-                await loadOverview(true);
-                await loadIntegrity(true);
-              } catch (err) {
-                setLastDecayStatus("failed");
-                message.error(t("decayFailed") + ": " + err.message);
-              }
-            }
-          });
-        };
-
-        React.useEffect(() => {
-          loadHealth(true);
-          loadOverview(true);
-          loadIntegrity(true);
-          runRecall(false, true);
-          runExplain(true);
-        }, [loadHealth, loadOverview, loadIntegrity, runRecall, runExplain]);
-
-        React.useEffect(() => {
-          const timer = window.setInterval(() => {
-            loadHealth(true);
-            loadOverview(true);
-            loadIntegrity(true);
-            runRecall(false, true);
-          }, 30000);
-          return () => window.clearInterval(timer);
-        }, [loadHealth, loadOverview, loadIntegrity, runRecall]);
-
-        const recallColumns = [
-          { title: t("id"), dataIndex: "id", key: "id", width: 220, render: (v) => <Text code>{String(v || "").slice(0, 16)}</Text> },
-          { title: t("summary"), dataIndex: "summary", key: "summary", ellipsis: true },
-          { title: t("clarity"), dataIndex: "clarity", key: "clarity", width: 100, render: (v) => Number(v || 0).toFixed(2) },
-          { title: t("score"), dataIndex: "score", key: "score", width: 100, render: (v) => Number(v || 0).toFixed(2) },
-          { title: t("stage"), dataIndex: "decay_stage", key: "decay_stage", width: 130, render: (v) => <Tag color="blue">{v || t("unknown")}</Tag> },
-          { title: "Last Accessed", dataIndex: "last_accessed_at", key: "last_accessed_at", width: 180, render: (v) => (v ? dayjs(v).format("MM-DD HH:mm:ss") : "-") }
-        ];
-        const explainRows = accepted.map((item, i) => ({ key: item.id || i, id: item.id, summary: item.summary || "-", score: Number(item.score || 0).toFixed(2), stage: item.decay_stage || "-" }));
-        const distributionColumns = [{ title: t("name"), dataIndex: "name", key: "name" }, { title: t("count"), dataIndex: "count", key: "count", width: 90 }];
-        const trendColumns = [{ title: t("date"), dataIndex: "date", key: "date", width: 140 }, { title: t("created"), dataIndex: "count", key: "count", width: 120 }];
-        const topNewColumns = [{ title: t("summary"), dataIndex: "summary", key: "summary", ellipsis: true }, { title: t("type"), dataIndex: "memory_type", key: "memory_type", width: 120 }, { title: t("created"), dataIndex: "created_at", key: "created_at", width: 170, render: (v) => (v ? dayjs(v).format("MM-DD HH:mm") : "-") }, { title: t("clarity"), dataIndex: "clarity", key: "clarity", width: 90, render: (v) => Number(v || 0).toFixed(2) }];
-        const topRiskColumns = [{ title: t("summary"), dataIndex: "summary", key: "summary", ellipsis: true }, { title: t("risk"), dataIndex: "risk_score", key: "risk_score", width: 90, render: (v) => Number(v || 0).toFixed(2) }, { title: t("idleDays"), dataIndex: "idle_days", key: "idle_days", width: 90 }, { title: t("stage"), dataIndex: "decay_stage", key: "decay_stage", width: 110 }];
-        const topAccessColumns = [{ title: t("summary"), dataIndex: "summary", key: "summary", ellipsis: true }, { title: t("access"), dataIndex: "access_count", key: "access_count", width: 90 }, { title: t("type"), dataIndex: "memory_type", key: "memory_type", width: 120 }, { title: t("clarity"), dataIndex: "clarity", key: "clarity", width: 90, render: (v) => Number(v || 0).toFixed(2) }];
-
-        const tabItems = [
-          {
-            key: "overview",
-            label: t("overview"),
-            children: (
-              <Space direction="vertical" size={16} style={{ width: "100%" }}>
-                <Row gutter={[16, 16]}>
-                  <Col xs={24} sm={12} lg={6}><Card loading={overviewLoading}><Statistic title={t("serviceHealth")} value={trStatus(health)} /></Card></Col>
-                  <Col xs={24} sm={12} lg={6}><Card loading={overviewLoading}><Statistic title={t("totalMemories")} value={overview ? overview.total_memories || 0 : 0} /></Card></Col>
-                  <Col xs={24} sm={12} lg={6}><Card loading={overviewLoading}><Statistic title={t("newWindow", { days: windowDays })} value={overview ? overview.new_memories_window || 0 : 0} /></Card></Col>
-                  <Col xs={24} sm={12} lg={6}><Card loading={overviewLoading}><Statistic title={t("avgClarity")} value={overview ? Number((overview.quality || {}).avg_clarity || 0).toFixed(2) : "0.00"} /></Card></Col>
-                </Row>
-                <Row gutter={[16, 16]}>
-                  <Col xs={24} sm={12} lg={6}><Card loading={overviewLoading}><Statistic title={t("newToday")} value={overview ? overview.new_memories_today || 0 : 0} /></Card></Col>
-                  <Col xs={24} sm={12} lg={6}><Card loading={overviewLoading}><Statistic title={t("newYesterday")} value={overview ? overview.new_memories_yesterday || 0 : 0} /></Card></Col>
-                  <Col xs={24} sm={12} lg={6}><Card loading={overviewLoading}><Statistic title={t("dayGrowth")} value={overview ? Number(overview.growth_rate_day_over_day || 0).toFixed(1) : "0.0"} /></Card></Col>
-                  <Col xs={24} sm={12} lg={6}><Card loading={overviewLoading}><Statistic title={t("highDecayRisk")} value={overview ? overview.high_decay_risk_count || 0 : 0} /></Card></Col>
-                </Row>
-                <Card title={t("healthSummary")} loading={integrityLoading}>
-                  <Descriptions size="small" column={2}>
-                    <Descriptions.Item label={t("backend")}>{(integrity && integrity.vector_backend) || "-"}</Descriptions.Item>
-                    <Descriptions.Item label={t("integrityStatus")}><Tag color={integrity && integrity.status === "ok" ? "green" : "orange"}>{(integrity && integrity.status) || t("unknown")}</Tag></Descriptions.Item>
-                    <Descriptions.Item label={t("sqlTotal")}>{(integrity && integrity.sql_total) || 0}</Descriptions.Item>
-                    <Descriptions.Item label={t("vectorTotal")}>{integrity && integrity.vector_total >= 0 ? integrity.vector_total : t("nA")}</Descriptions.Item>
-                    <Descriptions.Item label={t("sampleChecked")}>{(integrity && integrity.sample_checked) || 0}</Descriptions.Item>
-                    <Descriptions.Item label={t("missingInVector")}>{(integrity && integrity.missing_in_vector) || 0}</Descriptions.Item>
-                    <Descriptions.Item label={t("lastOverviewRefresh")}>{lastOverviewAt ? dayjs(lastOverviewAt).format("YYYY-MM-DD HH:mm:ss") : "-"}</Descriptions.Item>
-                    <Descriptions.Item label={t("pollingStatus")}>{pollingWarn ? <Tag color="orange">{pollingWarn}</Tag> : <Tag color="green">{t("healthy")}</Tag>}</Descriptions.Item>
-                  </Descriptions>
-                </Card>
-              </Space>
-            )
-          },
-          {
-            key: "detail",
-            label: t("detail"),
-            children: (
-              <Space direction="vertical" size={16} style={{ width: "100%" }}>
-                <Row gutter={[16, 16]}>
-                  <Col xs={24} lg={8}><Card title={t("topNew", { topK })} loading={overviewLoading}><Table size="small" columns={topNewColumns} dataSource={overview ? overview.top_new_memories || [] : []} pagination={false} rowKey={(row, idx) => row.id || idx} /></Card></Col>
-                  <Col xs={24} lg={8}><Card title={t("topRisk", { topK })} loading={overviewLoading}><Table size="small" columns={topRiskColumns} dataSource={overview ? overview.top_decay_risk_memories || [] : []} pagination={false} rowKey={(row, idx) => row.id || idx} /></Card></Col>
-                  <Col xs={24} lg={8}><Card title={t("topAccess", { topK })} loading={overviewLoading}><Table size="small" columns={topAccessColumns} dataSource={overview ? overview.top_accessed_memories || [] : []} pagination={false} rowKey={(row, idx) => row.id || idx} /></Card></Col>
-                </Row>
-                <Row gutter={[16, 16]}>
-                  <Col xs={24} lg={8}><Card title={t("lifecycleDistribution")} loading={overviewLoading}><Table size="small" pagination={false} columns={distributionColumns} dataSource={mapToRows(overview ? overview.by_lifecycle_state : null)} /></Card></Col>
-                  <Col xs={24} lg={8}><Card title={t("decayStageDistribution")} loading={overviewLoading}><Table size="small" pagination={false} columns={distributionColumns} dataSource={mapToRows(overview ? overview.by_decay_stage : null)} /></Card></Col>
-                  <Col xs={24} lg={8}><Card title={t("memoryTypeDistribution")} loading={overviewLoading}><Table size="small" pagination={false} columns={distributionColumns} dataSource={mapToRows(overview ? overview.by_memory_type : null)} /></Card></Col>
-                </Row>
-                <Card title={t("createdTrend", { days: windowDays })} loading={overviewLoading}>
-                  <Table size="small" pagination={{ pageSize: 10 }} columns={trendColumns} dataSource={Array.isArray(overview && overview.trend_created_daily) ? overview.trend_created_daily : []} rowKey={(row) => row.date} />
-                </Card>
-              </Space>
-            )
-          },
-          {
-            key: "workbench",
-            label: t("workbench"),
-            children: (
-              <Space direction="vertical" size={16} style={{ width: "100%" }}>
-                <Row gutter={[16, 16]}>
-                  <Col xs={24} sm={12} lg={6}><Card><Statistic title={t("lastRefresh")} value={lastRefreshAt ? dayjs(lastRefreshAt).format("HH:mm:ss") : "-"} /></Card></Col>
-                  <Col xs={24} sm={12} lg={6}><Card><Statistic title={t("recallHits")} value={results.length} /></Card></Col>
-                  <Col xs={24} sm={12} lg={6}><Card><Statistic title={t("lastDecayStatus")} value={trStatus(lastDecayStatus)} /></Card></Col>
-                  <Col xs={24} sm={12} lg={6}><Card><Statistic title={t("needGrounding")} value={overview ? (overview.quality || {}).needs_grounding_count || 0 : 0} /></Card></Col>
-                </Row>
-                <Card title={t("recallObservatory")}>
-                  <Space style={{ marginBottom: 16 }} wrap>
-                    <Input placeholder={t("query")} value={query} onChange={(e) => setQuery(e.target.value)} style={{ width: 320 }} />
-                    <Select value={k} onChange={setK} style={{ width: 100 }} options={[3, 5, 10, 20].map((v) => ({ value: v, label: "k=" + v }))} />
-                    <Button type="primary" loading={tableLoading} onClick={() => runRecall(true, false)}>{t("runRecall")}</Button>
-                    <Button loading={explainLoading} onClick={() => runExplain(false)}>{t("runExplain")}</Button>
-                    <Button danger onClick={runDecayWithConfirm}>{t("decayAll")}</Button>
-                  </Space>
-                  <Table size="small" rowKey={(row, idx) => row.id || idx} loading={tableLoading} columns={recallColumns} dataSource={results} pagination={{ pageSize: 8 }} scroll={{ x: 980 }} />
-                </Card>
-                <Card title={t("explainSnapshot")}>
-                  <Tabs
-                    items={[
-                      { key: "accepted", label: t("accepted") + " (" + accepted.length + ")", children: <Table size="small" rowKey="key" columns={[{ title: t("id"), dataIndex: "id", key: "id", width: 220 }, { title: t("summary"), dataIndex: "summary", key: "summary" }, { title: t("score"), dataIndex: "score", key: "score", width: 90 }, { title: t("stage"), dataIndex: "stage", key: "stage", width: 120 }]} dataSource={explainRows} pagination={{ pageSize: 5 }} scroll={{ x: 780 }} /> },
-                      { key: "filtered", label: t("filtered") + " (" + filtered.length + ")", children: <pre style={{ margin: 0, whiteSpace: "pre-wrap" }}>{JSON.stringify(filtered, null, 2)}</pre> }
-                    ]}
-                  />
-                </Card>
-              </Space>
-            )
-          }
-        ];
-
-        return (
-          <Layout style={{ minHeight: "100vh" }}>
-            <Header className="app-header">
-              <h1 className="app-header-title">{t("dashboardTitle")}</h1>
-              <Space>
-                <Text style={{ color: "#fff" }}>{t("language")}</Text>
-                <Select size="small" value={locale} onChange={setLocale} style={{ width: 92 }} options={[{ value: "en", label: "EN" }, { value: "zh", label: "中文" }]} />
-                <Button onClick={() => loadHealth(false)}>{t("healthCheck")}</Button>
-                <Button loading={overviewLoading || integrityLoading} onClick={() => { loadOverview(false); loadIntegrity(false); }}>{t("refreshMonitor")}</Button>
-                <Button type="primary" loading={tableLoading} onClick={() => runRecall(true, false)}>{t("refreshWorkbench")}</Button>
-              </Space>
-            </Header>
-            <Content style={{ padding: 24 }}>
-              <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
-            </Content>
-          </Layout>
-        );
-      };
-
-      const Root = () => (
-        <App>
-          <Dashboard />
-        </App>
-      );
-
-      ReactDOM.createRoot(document.getElementById("root")).render(<Root />);
-    </script>
-  </body>
-</html>
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Echo Fade Memory Dashboard</title>
-    <link rel="stylesheet" href="https://unpkg.com/antd@5/dist/reset.css" />
-    <style>
-      body {
-        margin: 0;
-        background: #f5f7fa;
-      }
-      #root {
-        min-height: 100vh;
-      }
-      .app-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 16px;
-      }
-      .app-header-title {
-        color: #fff;
-        margin: 0;
-        font-size: 18px;
-        font-weight: 600;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="root"></div>
-
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/dayjs@1/dayjs.min.js"></script>
-    <script src="https://unpkg.com/antd@5/dist/antd.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-    <script type="text/babel">
-      const {
-        App,
-        Button,
-        Card,
-        Col,
-        Descriptions,
-        Input,
-        Layout,
-        Modal,
-        Row,
-        Select,
-        Space,
-        Statistic,
-        Table,
-        Tag,
-        Tabs,
-        Typography
-      } = antd;
-
-      const { Header, Content } = Layout;
-      const { Text } = Typography;
-
-      const fetchJSON = async (url, options) => {
-        const response = await fetch(url, options);
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          const errMsg = payload && payload.error ? payload.error : "request failed";
-          throw new Error(errMsg);
-        }
-        return payload;
-      };
-
-      const getHealth = () => fetchJSON("/v1/healthz");
-      const getOverview = (windowDays, topK) =>
-        fetchJSON(
-          "/v1/stats/overview?window_days=" +
-            encodeURIComponent(windowDays) +
-            "&top_k=" +
-            encodeURIComponent(topK)
-        );
-      const getIntegrity = (sampleSize) =>
-        fetchJSON("/v1/stats/integrity?sample_size=" + encodeURIComponent(sampleSize));
-      const recallMemories = (q, k) =>
-        fetchJSON("/v1/memories?q=" + encodeURIComponent(q) + "&k=" + encodeURIComponent(k));
-      const explainMemories = (q, k) =>
-        fetchJSON("/v1/memories/explain", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: q, k: Number(k) })
-        });
-      const decayAll = () =>
-        fetchJSON("/v1/memories/decay", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" }
-        });
-
-      const mapToRows = (obj) =>
-        Object.entries(obj || {})
-          .map(([key, value]) => ({ key, name: key, count: Number(value || 0) }))
-          .sort((a, b) => b.count - a.count);
-
-      const I18N = {
-        en: {
-          unknown: "unknown",
-          healthCheckFailed: "health check failed",
-          overviewRefreshed: "overview refreshed",
-          overviewFailed: "overview failed",
-          integrityRefreshed: "integrity refreshed",
-          integrityFailed: "integrity failed",
-          queryRequired: "query required",
-          recallRefreshed: "recall refreshed",
-          recallFailed: "recall failed",
-          explainRefreshed: "explain refreshed",
-          explainFailed: "explain failed",
-          decayCompleted: "decay completed",
-          decayFailed: "decay failed",
-          autoRefreshPaused: "Auto refresh paused",
-          applyDecayTitle: "Apply decay to all memories?",
-          applyDecayContent: "This operation recalculates decay for all memories.",
-          runDecay: "Run decay",
-          cancel: "Cancel",
-          dashboardTitle: "Echo Fade Memory Dashboard",
-          healthCheck: "Health Check",
-          refreshMonitor: "Refresh Monitor",
-          refreshWorkbench: "Refresh Workbench",
-          language: "Language",
-          overview: "Overview",
-          detail: "Detail",
-          workbench: "Workbench",
-          serviceHealth: "Service Health",
-          totalMemories: "Total Memories",
-          newWindow: "New ({days}d)",
-          avgClarity: "Avg Clarity",
-          newToday: "New Today",
-          newYesterday: "New Yesterday",
-          dayGrowth: "Day Growth %",
-          highDecayRisk: "High Decay Risk",
-          healthSummary: "Health Summary",
-          backend: "Backend",
-          integrityStatus: "Integrity Status",
-          sqlTotal: "SQL Total",
-          vectorTotal: "Vector Total",
-          sampleChecked: "Sample Checked",
-          missingInVector: "Missing In Vector",
-          lastOverviewRefresh: "Last Overview Refresh",
-          pollingStatus: "Polling Status",
-          healthy: "healthy",
-          topNew: "Top{topK} New Memories",
-          topRisk: "Top{topK} Decay Risk",
-          topAccess: "Top{topK} Most Accessed",
-          lifecycleDistribution: "Lifecycle Distribution",
-          decayStageDistribution: "Decay Stage Distribution",
-          memoryTypeDistribution: "Memory Type Distribution",
-          createdTrend: "Created Trend ({days}d)",
-          id: "ID",
-          summary: "Summary",
-          type: "Type",
-          created: "Created",
-          clarity: "Clarity",
-          risk: "Risk",
-          idleDays: "Idle Days",
-          stage: "Stage",
-          access: "Access",
-          name: "Name",
-          count: "Count",
-          date: "Date",
-          recallObservatory: "Recall Observatory",
-          query: "query",
-          runRecall: "Run Recall",
-          runExplain: "Run Explain",
-          decayAll: "Decay All",
-          explainSnapshot: "Explain Snapshot",
-          accepted: "Accepted",
-          filtered: "Filtered",
-          lastRefresh: "Last Refresh",
-          recallHits: "Recall Hits",
-          lastDecayStatus: "Last Decay Status",
-          needGrounding: "Need Grounding",
-          nA: "n/a",
-          statusOk: "ok",
-          statusUnhealthy: "unhealthy",
-          statusNotTriggered: "not triggered",
-          statusFailed: "failed"
-        },
-        zh: {
-          unknown: "未知",
-          healthCheckFailed: "健康检查失败",
-          overviewRefreshed: "总览已刷新",
-          overviewFailed: "总览请求失败",
-          integrityRefreshed: "一致性已刷新",
-          integrityFailed: "一致性请求失败",
-          queryRequired: "请输入查询词",
-          recallRefreshed: "召回已刷新",
-          recallFailed: "召回失败",
-          explainRefreshed: "解释已刷新",
-          explainFailed: "解释失败",
-          decayCompleted: "衰减执行完成",
-          decayFailed: "衰减执行失败",
-          autoRefreshPaused: "自动刷新已暂停",
-          applyDecayTitle: "确认对全部记忆执行衰减？",
-          applyDecayContent: "该操作会重算所有记忆的衰减状态。",
-          runDecay: "执行衰减",
-          cancel: "取消",
-          dashboardTitle: "Echo Fade Memory 控制台",
-          healthCheck: "健康检查",
-          refreshMonitor: "刷新监控",
-          refreshWorkbench: "刷新工作台",
-          language: "语言",
-          overview: "总览",
-          detail: "明细",
-          workbench: "工作台",
-          serviceHealth: "服务健康",
-          totalMemories: "记忆总量",
-          newWindow: "新增（{days}天）",
-          avgClarity: "平均清晰度",
-          newToday: "今日新增",
-          newYesterday: "昨日新增",
-          dayGrowth: "日环比 %",
-          highDecayRisk: "高衰减风险",
-          healthSummary: "健康摘要",
-          backend: "后端",
-          integrityStatus: "一致性状态",
-          sqlTotal: "SQL 总数",
-          vectorTotal: "向量总数",
-          sampleChecked: "抽样检查数",
-          missingInVector: "向量缺失数",
-          lastOverviewRefresh: "总览刷新时间",
-          pollingStatus: "轮询状态",
-          healthy: "正常",
-          topNew: "最近新增 Top{topK}",
-          topRisk: "衰减风险 Top{topK}",
-          topAccess: "高频访问 Top{topK}",
-          lifecycleDistribution: "生命周期分布",
-          decayStageDistribution: "衰减阶段分布",
-          memoryTypeDistribution: "记忆类型分布",
-          createdTrend: "新增趋势（{days}天）",
-          id: "ID",
-          summary: "摘要",
-          type: "类型",
-          created: "创建时间",
-          clarity: "清晰度",
-          risk: "风险值",
-          idleDays: "闲置天数",
-          stage: "阶段",
-          access: "访问次数",
-          name: "名称",
-          count: "数量",
-          date: "日期",
-          recallObservatory: "召回观测台",
-          query: "查询词",
-          runRecall: "执行召回",
-          runExplain: "执行解释",
-          decayAll: "全量衰减",
-          explainSnapshot: "Explain 快照",
-          accepted: "通过",
-          filtered: "过滤",
-          lastRefresh: "最近刷新",
-          recallHits: "召回命中",
-          lastDecayStatus: "最近衰减状态",
-          needGrounding: "需溯源数量",
-          nA: "无",
-          statusOk: "正常",
-          statusUnhealthy: "异常",
-          statusNotTriggered: "未执行",
-          statusFailed: "失败"
-        }
-      };
-
-      const I18N = {
-        en: {
-          unknown: "unknown",
-          requestFailed: "request failed",
-          healthCheckFailed: "health check failed",
-          overviewRefreshed: "overview refreshed",
-          overviewFailed: "overview failed",
-          integrityRefreshed: "integrity refreshed",
-          integrityFailed: "integrity failed",
-          queryRequired: "query required",
-          recallRefreshed: "recall refreshed",
-          recallFailed: "recall failed",
-          explainRefreshed: "explain refreshed",
-          explainFailed: "explain failed",
-          decayCompleted: "decay completed",
-          decayFailed: "decay failed",
-          autoRefreshPaused: "Auto refresh paused",
-          applyDecayTitle: "Apply decay to all memories?",
-          applyDecayContent: "This operation recalculates decay for all memories.",
-          runDecay: "Run decay",
-          cancel: "Cancel",
-          dashboardTitle: "Echo Fade Memory Dashboard",
-          healthCheck: "Health Check",
-          refreshMonitor: "Refresh Monitor",
-          refreshWorkbench: "Refresh Workbench",
-          language: "Language",
-          overview: "Overview",
-          detail: "Detail",
-          workbench: "Workbench",
-          serviceHealth: "Service Health",
-          totalMemories: "Total Memories",
-          newWindow: "New ({days}d)",
-          avgClarity: "Avg Clarity",
-          newToday: "New Today",
-          newYesterday: "New Yesterday",
-          dayGrowth: "Day Growth %",
-          highDecayRisk: "High Decay Risk",
-          healthSummary: "Health Summary",
-          backend: "Backend",
-          integrityStatus: "Integrity Status",
-          sqlTotal: "SQL Total",
-          vectorTotal: "Vector Total",
-          sampleChecked: "Sample Checked",
-          missingInVector: "Missing In Vector",
-          lastOverviewRefresh: "Last Overview Refresh",
-          pollingStatus: "Polling Status",
-          healthy: "healthy",
-          topNew: "Top{topK} New Memories",
-          topRisk: "Top{topK} Decay Risk",
-          topAccess: "Top{topK} Most Accessed",
-          lifecycleDistribution: "Lifecycle Distribution",
-          decayStageDistribution: "Decay Stage Distribution",
-          memoryTypeDistribution: "Memory Type Distribution",
-          createdTrend: "Created Trend ({days}d)",
-          id: "ID",
-          summary: "Summary",
-          type: "Type",
-          created: "Created",
-          clarity: "Clarity",
-          risk: "Risk",
-          idleDays: "Idle Days",
-          stage: "Stage",
-          access: "Access",
-          name: "Name",
-          count: "Count",
-          date: "Date",
-          recallObservatory: "Recall Observatory",
-          query: "query",
-          runRecall: "Run Recall",
-          runExplain: "Run Explain",
-          decayAll: "Decay All",
-          explainSnapshot: "Explain Snapshot",
-          accepted: "Accepted",
-          filtered: "Filtered",
-          lastRefresh: "Last Refresh",
-          recallHits: "Recall Hits",
-          lastDecayStatus: "Last Decay Status",
-          needGrounding: "Need Grounding",
-          nA: "n/a"
-        },
-        zh: {
-          unknown: "未知",
-          requestFailed: "请求失败",
-          healthCheckFailed: "健康检查失败",
-          overviewRefreshed: "总览已刷新",
-          overviewFailed: "总览请求失败",
-          integrityRefreshed: "一致性已刷新",
-          integrityFailed: "一致性请求失败",
-          queryRequired: "请输入查询词",
-          recallRefreshed: "召回已刷新",
-          recallFailed: "召回失败",
-          explainRefreshed: "解释已刷新",
-          explainFailed: "解释失败",
-          decayCompleted: "衰减执行完成",
-          decayFailed: "衰减执行失败",
-          autoRefreshPaused: "自动刷新已暂停",
-          applyDecayTitle: "确认对全部记忆执行衰减？",
-          applyDecayContent: "该操作会重算所有记忆的衰减状态。",
-          runDecay: "执行衰减",
-          cancel: "取消",
-          dashboardTitle: "Echo Fade Memory 控制台",
-          healthCheck: "健康检查",
-          refreshMonitor: "刷新监控",
-          refreshWorkbench: "刷新工作台",
-          language: "语言",
-          overview: "总览",
-          detail: "明细",
-          workbench: "工作台",
-          serviceHealth: "服务健康",
-          totalMemories: "记忆总量",
-          newWindow: "新增（{days}天）",
-          avgClarity: "平均清晰度",
-          newToday: "今日新增",
-          newYesterday: "昨日新增",
-          dayGrowth: "日环比 %",
-          highDecayRisk: "高衰减风险",
-          healthSummary: "健康摘要",
-          backend: "后端",
-          integrityStatus: "一致性状态",
-          sqlTotal: "SQL 总数",
-          vectorTotal: "向量总数",
-          sampleChecked: "抽样检查数",
-          missingInVector: "向量缺失数",
-          lastOverviewRefresh: "总览刷新时间",
-          pollingStatus: "轮询状态",
-          healthy: "正常",
-          topNew: "最近新增 Top{topK}",
-          topRisk: "衰减风险 Top{topK}",
-          topAccess: "高频访问 Top{topK}",
-          lifecycleDistribution: "生命周期分布",
-          decayStageDistribution: "衰减阶段分布",
-          memoryTypeDistribution: "记忆类型分布",
-          createdTrend: "新增趋势（{days}天）",
-          id: "ID",
-          summary: "摘要",
-          type: "类型",
-          created: "创建时间",
-          clarity: "清晰度",
-          risk: "风险值",
-          idleDays: "闲置天数",
-          stage: "阶段",
-          access: "访问次数",
-          name: "名称",
-          count: "数量",
-          date: "日期",
-          recallObservatory: "召回观测台",
-          query: "查询词",
-          runRecall: "执行召回",
-          runExplain: "执行解释",
-          decayAll: "全量衰减",
-          explainSnapshot: "Explain 快照",
-          accepted: "通过",
-          filtered: "过滤",
-          lastRefresh: "最近刷新",
-          recallHits: "召回命中",
-          lastDecayStatus: "最近衰减状态",
-          needGrounding: "需溯源数量",
-          nA: "无"
-        }
-      };
-
-      const Dashboard = () => {
-        const { message } = App.useApp();
-        const [locale, setLocale] = React.useState("en");
-        const [activeTab, setActiveTab] = React.useState("overview");
-        const [windowDays] = React.useState(30);
-        const [sampleSize] = React.useState(200);
-        const [topK] = React.useState(10);
-
-        const [query, setQuery] = React.useState("project");
-        const [k, setK] = React.useState(5);
-        const [health, setHealth] = React.useState("unknown");
-        const [lastRefreshAt, setLastRefreshAt] = React.useState(null);
-        const [lastOverviewAt, setLastOverviewAt] = React.useState(null);
-        const [lastDecayStatus, setLastDecayStatus] = React.useState("not triggered");
-        const [tableLoading, setTableLoading] = React.useState(false);
-        const [explainLoading, setExplainLoading] = React.useState(false);
-        const [overviewLoading, setOverviewLoading] = React.useState(false);
-        const [integrityLoading, setIntegrityLoading] = React.useState(false);
-        const [pollingWarn, setPollingWarn] = React.useState("");
-
-        const [results, setResults] = React.useState([]);
-        const [accepted, setAccepted] = React.useState([]);
-        const [filtered, setFiltered] = React.useState([]);
-        const [overview, setOverview] = React.useState(null);
-        const [integrity, setIntegrity] = React.useState(null);
-
-        const t = React.useCallback(
-          (key, vars) => {
-            const dict = I18N[locale] || I18N.en;
-            let text = dict[key] || I18N.en[key] || key;
-            if (vars) {
-              Object.keys(vars).forEach((k) => {
-                text = text.replace("{" + k + "}", String(vars[k]));
-              });
-            }
-            return text;
-          },
-          [locale]
-        );
-
-        React.useEffect(() => {
-          document.documentElement.setAttribute("lang", locale === "zh" ? "zh-CN" : "en");
-        }, [locale]);
-
-        const loadHealth = React.useCallback(
-          async (silent) => {
-            try {
-              const res = await getHealth();
-              setHealth(res.status || "ok");
-            } catch (err) {
-              setHealth("unhealthy");
-              if (!silent) {
-                message.error(t("healthCheckFailed") + ": " + err.message);
-              }
-            }
-          },
-          [message, t]
-        );
-
-        const loadOverview = React.useCallback(
-          async (silent) => {
-            if (!silent) setOverviewLoading(true);
-            try {
-              const res = await getOverview(windowDays, topK);
-              setOverview(res || null);
-              setLastOverviewAt(new Date());
-              if (!silent) {
-                message.success(t("overviewRefreshed"));
-              }
-              setPollingWarn("");
-            } catch (err) {
-              if (silent) {
-                setPollingWarn(t("autoRefreshPaused") + ": " + err.message);
-              } else {
-                message.error(t("overviewFailed") + ": " + err.message);
-              }
-            } finally {
-              if (!silent) setOverviewLoading(false);
-            }
-          },
-          [windowDays, topK, message, t]
-        );
-
-        const loadIntegrity = React.useCallback(
-          async (silent) => {
-            if (!silent) setIntegrityLoading(true);
-            try {
-              const res = await getIntegrity(sampleSize);
-              setIntegrity(res || null);
-              if (!silent) {
-                message.success(t("integrityRefreshed"));
-              }
-            } catch (err) {
-              if (!silent) {
-                message.error(t("integrityFailed") + ": " + err.message);
-              }
-            } finally {
-              if (!silent) setIntegrityLoading(false);
-            }
-          },
-          [sampleSize, message, t]
-        );
-
-        const runRecall = React.useCallback(
-          async (showSuccess, silentError) => {
-            const q = query.trim();
-            if (!q) {
-              message.warning(t("queryRequired"));
-              return;
-            }
-            setTableLoading(true);
-            try {
-              const res = await recallMemories(q, k);
-              const items = Array.isArray(res.results) ? res.results : [];
-              setResults(items);
-              setLastRefreshAt(new Date());
-              if (showSuccess) {
-                message.success(t("recallRefreshed"));
-              }
-            } catch (err) {
-              if (!silentError) {
-                message.error(t("recallFailed") + ": " + err.message);
-              }
-            } finally {
-              setTableLoading(false);
-            }
-          },
-          [query, k, message, t]
-        );
-
-        const runExplain = React.useCallback(
-          async (silentError) => {
-            const q = query.trim();
-            if (!q) {
-              message.warning(t("queryRequired"));
-              return;
-            }
-            setExplainLoading(true);
-            try {
-              const res = await explainMemories(q, k);
-              setAccepted(Array.isArray(res.accepted) ? res.accepted : []);
-              setFiltered(Array.isArray(res.filtered) ? res.filtered : []);
-              if (!silentError) {
-                message.success(t("explainRefreshed"));
-              }
-            } catch (err) {
-              if (!silentError) {
-                message.error(t("explainFailed") + ": " + err.message);
-              }
-            } finally {
-              setExplainLoading(false);
-            }
-          },
-          [query, k, message, t]
-        );
-
-        const runDecayWithConfirm = () => {
-          Modal.confirm({
-            title: t("applyDecayTitle"),
-            content: t("applyDecayContent"),
-            okText: t("runDecay"),
-            cancelText: t("cancel"),
-            onOk: async () => {
-              try {
-                const res = await decayAll();
-                setLastDecayStatus(res.status || "decayed");
-                message.success(t("decayCompleted"));
-                await loadOverview(true);
-                await loadIntegrity(true);
-              } catch (err) {
-                setLastDecayStatus("failed");
-                message.error(t("decayFailed") + ": " + err.message);
-              }
-            }
-          });
-        };
-
-        React.useEffect(() => {
-          loadHealth(true);
-          loadOverview(true);
-          loadIntegrity(true);
-          runRecall(false, true);
-          runExplain(true);
-        }, [loadHealth, loadOverview, loadIntegrity, runRecall, runExplain]);
-
-        React.useEffect(() => {
-          const timer = window.setInterval(() => {
-            loadHealth(true);
-            loadOverview(true);
-            loadIntegrity(true);
-            runRecall(false, true);
-          }, 30000);
-          return () => window.clearInterval(timer);
-        }, [loadHealth, loadOverview, loadIntegrity, runRecall]);
-
-        const recallColumns = [
-          {
-            title: "ID",
-            dataIndex: "id",
-            key: "id",
-            width: 220,
-            render: (value) => <Text code>{String(value || "").slice(0, 16)}</Text>
-          },
-          { title: "Summary", dataIndex: "summary", key: "summary", ellipsis: true },
-          {
-            title: "Clarity",
-            dataIndex: "clarity",
-            key: "clarity",
-            width: 100,
-            render: (value) => Number(value || 0).toFixed(2)
-          },
-          {
-            title: "Score",
-            dataIndex: "score",
-            key: "score",
-            width: 100,
-            render: (value) => Number(value || 0).toFixed(2)
-          },
-          {
-            title: "Decay Stage",
-            dataIndex: "decay_stage",
-            key: "decay_stage",
-            width: 130,
-            render: (value) => <Tag color="blue">{value || "unknown"}</Tag>
-          },
-          {
-            title: "Last Accessed",
-            dataIndex: "last_accessed_at",
-            key: "last_accessed_at",
-            width: 180,
-            render: (value) => (value ? dayjs(value).format("MM-DD HH:mm:ss") : "-")
-          }
-        ];
-
-        const explainRows = accepted.map((item, index) => ({
-          key: item.id || index,
-          id: item.id,
-          summary: item.summary || "-",
-          score: Number(item.score || 0).toFixed(2),
-          stage: item.decay_stage || "-"
-        }));
-
-        const distributionColumns = [
-          { title: "Name", dataIndex: "name", key: "name" },
-          { title: "Count", dataIndex: "count", key: "count", width: 90 }
-        ];
-
-        const trendColumns = [
-          { title: "Date", dataIndex: "date", key: "date", width: 140 },
-          { title: "Created", dataIndex: "count", key: "count", width: 120 }
-        ];
-
-        const topNewColumns = [
-          { title: "Summary", dataIndex: "summary", key: "summary", ellipsis: true },
-          { title: "Type", dataIndex: "memory_type", key: "memory_type", width: 120 },
-          {
-            title: "Created",
-            dataIndex: "created_at",
-            key: "created_at",
-            width: 170,
-            render: (v) => (v ? dayjs(v).format("MM-DD HH:mm") : "-")
-          },
-          {
-            title: "Clarity",
-            dataIndex: "clarity",
-            key: "clarity",
-            width: 90,
-            render: (v) => Number(v || 0).toFixed(2)
-          }
-        ];
-
-        const topRiskColumns = [
-          { title: "Summary", dataIndex: "summary", key: "summary", ellipsis: true },
-          {
-            title: "Risk",
-            dataIndex: "risk_score",
-            key: "risk_score",
-            width: 90,
-            render: (v) => Number(v || 0).toFixed(2)
-          },
-          {
-            title: "Idle Days",
-            dataIndex: "idle_days",
-            key: "idle_days",
-            width: 90
-          },
-          {
-            title: "Stage",
-            dataIndex: "decay_stage",
-            key: "decay_stage",
-            width: 110
-          }
-        ];
-
-        const topAccessColumns = [
-          { title: "Summary", dataIndex: "summary", key: "summary", ellipsis: true },
-          {
-            title: "Access",
-            dataIndex: "access_count",
-            key: "access_count",
-            width: 90
-          },
-          {
-            title: "Type",
-            dataIndex: "memory_type",
-            key: "memory_type",
-            width: 120
-          },
-          {
-            title: "Clarity",
-            dataIndex: "clarity",
-            key: "clarity",
-            width: 90,
-            render: (v) => Number(v || 0).toFixed(2)
-          }
-        ];
-
-        const tabItems = [
-          {
-            key: "overview",
-            label: "Overview",
-            children: (
-              <Space direction="vertical" size={16} style={{ width: "100%" }}>
-                <Row gutter={[16, 16]}>
-                  <Col xs={24} sm={12} lg={6}>
-                    <Card loading={overviewLoading}>
-                      <Statistic title="Service Health" value={health} />
-                    </Card>
-                  </Col>
-                  <Col xs={24} sm={12} lg={6}>
-                    <Card loading={overviewLoading}>
-                      <Statistic title="Total Memories" value={overview ? overview.total_memories || 0 : 0} />
-                    </Card>
-                  </Col>
-                  <Col xs={24} sm={12} lg={6}>
-                    <Card loading={overviewLoading}>
-                      <Statistic
-                        title={"New (" + windowDays + "d)"}
-                        value={overview ? overview.new_memories_window || 0 : 0}
-                      />
-                    </Card>
-                  </Col>
-                  <Col xs={24} sm={12} lg={6}>
-                    <Card loading={overviewLoading}>
-                      <Statistic
-                        title="Avg Clarity"
-                        value={overview ? Number((overview.quality || {}).avg_clarity || 0).toFixed(2) : "0.00"}
-                      />
-                    </Card>
-                  </Col>
-                </Row>
-
-                <Row gutter={[16, 16]}>
-                  <Col xs={24} sm={12} lg={6}>
-                    <Card loading={overviewLoading}>
-                      <Statistic title="New Today" value={overview ? overview.new_memories_today || 0 : 0} />
-                    </Card>
-                  </Col>
-                  <Col xs={24} sm={12} lg={6}>
-                    <Card loading={overviewLoading}>
-                      <Statistic
-                        title="New Yesterday"
-                        value={overview ? overview.new_memories_yesterday || 0 : 0}
-                      />
-                    </Card>
-                  </Col>
-                  <Col xs={24} sm={12} lg={6}>
-                    <Card loading={overviewLoading}>
-                      <Statistic
-                        title="Day Growth %"
-                        value={overview ? Number(overview.growth_rate_day_over_day || 0).toFixed(1) : "0.0"}
-                      />
-                    </Card>
-                  </Col>
-                  <Col xs={24} sm={12} lg={6}>
-                    <Card loading={overviewLoading}>
-                      <Statistic
-                        title="High Decay Risk"
-                        value={overview ? overview.high_decay_risk_count || 0 : 0}
-                      />
-                    </Card>
-                  </Col>
-                </Row>
-
-                <Card title="Health Summary" loading={integrityLoading}>
-                  <Descriptions size="small" column={2}>
-                    <Descriptions.Item label="Backend">
-                      {(integrity && integrity.vector_backend) || "-"}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Integrity Status">
-                      <Tag color={integrity && integrity.status === "ok" ? "green" : "orange"}>
-                        {(integrity && integrity.status) || "unknown"}
-                      </Tag>
-                    </Descriptions.Item>
-                    <Descriptions.Item label="SQL Total">
-                      {(integrity && integrity.sql_total) || 0}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Vector Total">
-                      {integrity && integrity.vector_total >= 0 ? integrity.vector_total : "n/a"}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Sample Checked">
-                      {(integrity && integrity.sample_checked) || 0}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Missing In Vector">
-                      {(integrity && integrity.missing_in_vector) || 0}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Last Overview Refresh">
-                      {lastOverviewAt ? dayjs(lastOverviewAt).format("YYYY-MM-DD HH:mm:ss") : "-"}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Polling Status">
-                      {pollingWarn ? <Tag color="orange">{pollingWarn}</Tag> : <Tag color="green">healthy</Tag>}
-                    </Descriptions.Item>
-                  </Descriptions>
-                </Card>
-              </Space>
-            )
-          },
-          {
-            key: "detail",
-            label: "Detail",
-            children: (
-              <Space direction="vertical" size={16} style={{ width: "100%" }}>
-                <Row gutter={[16, 16]}>
-                  <Col xs={24} lg={8}>
-                    <Card title={"Top" + topK + " New Memories"} loading={overviewLoading}>
-                      <Table
-                        size="small"
-                        columns={topNewColumns}
-                        dataSource={overview ? overview.top_new_memories || [] : []}
-                        pagination={false}
-                        rowKey={(row, idx) => row.id || idx}
-                      />
-                    </Card>
-                  </Col>
-                  <Col xs={24} lg={8}>
-                    <Card title={"Top" + topK + " Decay Risk"} loading={overviewLoading}>
-                      <Table
-                        size="small"
-                        columns={topRiskColumns}
-                        dataSource={overview ? overview.top_decay_risk_memories || [] : []}
-                        pagination={false}
-                        rowKey={(row, idx) => row.id || idx}
-                      />
-                    </Card>
-                  </Col>
-                  <Col xs={24} lg={8}>
-                    <Card title={"Top" + topK + " Most Accessed"} loading={overviewLoading}>
-                      <Table
-                        size="small"
-                        columns={topAccessColumns}
-                        dataSource={overview ? overview.top_accessed_memories || [] : []}
-                        pagination={false}
-                        rowKey={(row, idx) => row.id || idx}
-                      />
-                    </Card>
-                  </Col>
-                </Row>
-
-                <Row gutter={[16, 16]}>
-                  <Col xs={24} lg={8}>
-                    <Card title="Lifecycle Distribution" loading={overviewLoading}>
-                      <Table
-                        size="small"
-                        pagination={false}
-                        columns={distributionColumns}
-                        dataSource={mapToRows(overview ? overview.by_lifecycle_state : null)}
-                      />
-                    </Card>
-                  </Col>
-                  <Col xs={24} lg={8}>
-                    <Card title="Decay Stage Distribution" loading={overviewLoading}>
-                      <Table
-                        size="small"
-                        pagination={false}
-                        columns={distributionColumns}
-                        dataSource={mapToRows(overview ? overview.by_decay_stage : null)}
-                      />
-                    </Card>
-                  </Col>
-                  <Col xs={24} lg={8}>
-                    <Card title="Memory Type Distribution" loading={overviewLoading}>
-                      <Table
-                        size="small"
-                        pagination={false}
-                        columns={distributionColumns}
-                        dataSource={mapToRows(overview ? overview.by_memory_type : null)}
-                      />
-                    </Card>
-                  </Col>
-                </Row>
-
-                <Card title={"Created Trend (" + windowDays + "d)"} loading={overviewLoading}>
-                  <Table
-                    size="small"
-                    pagination={{ pageSize: 10 }}
-                    columns={trendColumns}
-                    dataSource={Array.isArray(overview && overview.trend_created_daily) ? overview.trend_created_daily : []}
-                    rowKey={(row) => row.date}
-                  />
-                </Card>
-              </Space>
-            )
-          },
-          {
-            key: "workbench",
-            label: "Workbench",
-            children: (
-              <Space direction="vertical" size={16} style={{ width: "100%" }}>
-                <Row gutter={[16, 16]}>
-                  <Col xs={24} sm={12} lg={6}>
-                    <Card>
-                      <Statistic
-                        title="Last Refresh"
-                        value={lastRefreshAt ? dayjs(lastRefreshAt).format("HH:mm:ss") : "-"}
-                      />
-                    </Card>
-                  </Col>
-                  <Col xs={24} sm={12} lg={6}>
-                    <Card>
-                      <Statistic title="Recall Hits" value={results.length} />
-                    </Card>
-                  </Col>
-                  <Col xs={24} sm={12} lg={6}>
-                    <Card>
-                      <Statistic title="Last Decay Status" value={lastDecayStatus} />
-                    </Card>
-                  </Col>
-                  <Col xs={24} sm={12} lg={6}>
-                    <Card>
-                      <Statistic
-                        title="Need Grounding"
-                        value={overview ? (overview.quality || {}).needs_grounding_count || 0 : 0}
-                      />
-                    </Card>
-                  </Col>
-                </Row>
-
-                <Card title="Recall Observatory">
-                  <Space style={{ marginBottom: 16 }} wrap>
-                    <Input
-                      placeholder="query"
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                      style={{ width: 320 }}
-                    />
-                    <Select
-                      value={k}
-                      onChange={setK}
-                      style={{ width: 100 }}
-                      options={[3, 5, 10, 20].map((v) => ({ value: v, label: "k=" + v }))}
-                    />
-                    <Button type="primary" loading={tableLoading} onClick={() => runRecall(true, false)}>
-                      Run Recall
-                    </Button>
-                    <Button loading={explainLoading} onClick={() => runExplain(false)}>
-                      Run Explain
-                    </Button>
-                    <Button danger onClick={runDecayWithConfirm}>
-                      Decay All
-                    </Button>
-                  </Space>
-                  <Table
-                    size="small"
-                    rowKey={(row, idx) => row.id || idx}
-                    loading={tableLoading}
-                    columns={recallColumns}
-                    dataSource={results}
-                    pagination={{ pageSize: 8 }}
-                    scroll={{ x: 980 }}
-                  />
-                </Card>
-
-                <Card title="Explain Snapshot">
-                  <Tabs
-                    items={[
-                      {
-                        key: "accepted",
-                        label: "Accepted (" + accepted.length + ")",
-                        children: (
-                          <Table
-                            size="small"
-                            rowKey="key"
-                            columns={[
-                              { title: "ID", dataIndex: "id", key: "id", width: 220 },
-                              { title: "Summary", dataIndex: "summary", key: "summary" },
-                              { title: "Score", dataIndex: "score", key: "score", width: 90 },
-                              { title: "Stage", dataIndex: "stage", key: "stage", width: 120 }
-                            ]}
-                            dataSource={explainRows}
-                            pagination={{ pageSize: 5 }}
-                            scroll={{ x: 780 }}
-                          />
-                        )
-                      },
-                      {
-                        key: "filtered",
-                        label: "Filtered (" + filtered.length + ")",
-                        children: (
-                          <pre style={{ margin: 0, whiteSpace: "pre-wrap" }}>
-{JSON.stringify(filtered, null, 2)}
-                          </pre>
-                        )
-                      }
-                    ]}
-                  />
-                </Card>
-              </Space>
-            )
-          }
-        ];
-
-        return (
-          <Layout style={{ minHeight: "100vh" }}>
-            <Header className="app-header">
-              <h1 className="app-header-title">Echo Fade Memory Dashboard</h1>
-              <Space>
-                <Button onClick={() => loadHealth(false)}>Health Check</Button>
-                <Button
-                  loading={overviewLoading || integrityLoading}
-                  onClick={() => {
-                    loadOverview(false);
-                    loadIntegrity(false);
-                  }}
-                >
-                  Refresh Monitor
-                </Button>
-                <Button type="primary" loading={tableLoading} onClick={() => runRecall(true, false)}>
-                  Refresh Workbench
-                </Button>
-              </Space>
-            </Header>
-            <Content style={{ padding: 24 }}>
-              <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
-            </Content>
-          </Layout>
-        );
-      };
-
-      const Root = () => (
-        <App>
-          <Dashboard />
-        </App>
-      );
-
-      ReactDOM.createRoot(document.getElementById("root")).render(<Root />);
     </script>
   </body>
 </html>
