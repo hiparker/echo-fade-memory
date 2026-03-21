@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -164,6 +165,543 @@ func TestMemorySubresourcesHappyPath(t *testing.T) {
 	}
 }
 
+func TestToolEndpointsHappyPath(t *testing.T) {
+	srv := api.NewServer(testutil.NewTestEngine(t))
+
+	storeBody, _ := json.Marshal(map[string]interface{}{
+		"content":        "thin tool api keeps model calls small",
+		"summary":        "thin tool api",
+		"memory_type":    "project",
+		"importance":     0.9,
+		"source_kind":    "chat",
+		"source_ref":     "chat:thin",
+		"conflict_group": "tool:thin-api",
+	})
+	req := httptest.NewRequest(http.MethodPost, "/v1/tools/store", bytes.NewReader(storeBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST /v1/tools/store status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	}
+
+	var stored struct {
+		Status         string `json:"status"`
+		ID             string `json:"id"`
+		ObjectType     string `json:"object_type"`
+		Title          string `json:"title"`
+		Summary        string `json:"summary"`
+		LifecycleState string `json:"lifecycle_state"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &stored); err != nil {
+		t.Fatalf("decode store response: %v", err)
+	}
+	if stored.Status != "stored" || stored.ID == "" || stored.ObjectType != "memory" || stored.Title == "" {
+		t.Fatalf("unexpected store response: %+v", stored)
+	}
+
+	recallBody, _ := json.Marshal(map[string]interface{}{
+		"query": "model calls small",
+	})
+	req = httptest.NewRequest(http.MethodPost, "/v1/tools/recall", bytes.NewReader(recallBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST /v1/tools/recall status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	}
+
+	var recall struct {
+		Query    string `json:"query"`
+		Count    int    `json:"count"`
+		Memories []struct {
+			ID             string `json:"id"`
+			Summary        string `json:"summary"`
+			NeedsGrounding bool   `json:"needs_grounding"`
+		} `json:"memories"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &recall); err != nil {
+		t.Fatalf("decode recall response: %v", err)
+	}
+	if recall.Query != "model calls small" || recall.Count == 0 || len(recall.Memories) == 0 {
+		t.Fatalf("unexpected recall response: %+v", recall)
+	}
+	if recall.Memories[0].ID != stored.ID {
+		t.Fatalf("recalled id = %q, want %q", recall.Memories[0].ID, stored.ID)
+	}
+
+	forgetBody, _ := json.Marshal(map[string]interface{}{"query": "model calls small"})
+	req = httptest.NewRequest(http.MethodPost, "/v1/tools/forget", bytes.NewReader(forgetBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST /v1/tools/forget status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestUnifiedToolEndpointsSupportImages(t *testing.T) {
+	srv := api.NewServer(testutil.NewTestEngine(t))
+
+	imagePath := filepath.Join(t.TempDir(), "ops-dashboard.png")
+	if err := os.WriteFile(imagePath, []byte("fake-image"), 0644); err != nil {
+		t.Fatalf("write image: %v", err)
+	}
+	if err := os.WriteFile(imagePath+".ocr.txt", []byte("Latency Spike"), 0644); err != nil {
+		t.Fatalf("write sidecar: %v", err)
+	}
+
+	storeBody, _ := json.Marshal(map[string]interface{}{
+		"object_type":    "image",
+		"file_path":      imagePath,
+		"source_session": "session:image-tool",
+		"source_kind":    "chat_image",
+	})
+	req := httptest.NewRequest(http.MethodPost, "/v1/tools/store", bytes.NewReader(storeBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST /v1/tools/store image status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	}
+
+	var stored struct {
+		Status     string `json:"status"`
+		ObjectType string `json:"object_type"`
+		ID         string `json:"id"`
+		Title      string `json:"title"`
+		Summary    string `json:"summary"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &stored); err != nil {
+		t.Fatalf("decode image store response: %v", err)
+	}
+	if stored.Status != "stored" || stored.ObjectType != "image" || stored.ID == "" || stored.Title == "" {
+		t.Fatalf("unexpected image store response: %+v", stored)
+	}
+
+	recallBody, _ := json.Marshal(map[string]interface{}{"query": "latency spike"})
+	req = httptest.NewRequest(http.MethodPost, "/v1/tools/recall", bytes.NewReader(recallBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST /v1/tools/recall unified status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	}
+
+	var recall struct {
+		Query  string `json:"query"`
+		Count  int    `json:"count"`
+		Images []struct {
+			ID string `json:"id"`
+		} `json:"images"`
+		Mixed []struct {
+			ObjectType string `json:"object_type"`
+			ID         string `json:"id"`
+		} `json:"mixed"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &recall); err != nil {
+		t.Fatalf("decode unified recall response: %v", err)
+	}
+	if recall.Query != "latency spike" || recall.Count == 0 || len(recall.Images) == 0 || recall.Images[0].ID != stored.ID {
+		t.Fatalf("unexpected unified recall response: %+v", recall)
+	}
+
+	forgetBody, _ := json.Marshal(map[string]interface{}{"query": "latency spike", "object_type": "image"})
+	req = httptest.NewRequest(http.MethodPost, "/v1/tools/forget", bytes.NewReader(forgetBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST /v1/tools/forget image status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestToolForgetSupportsQuerySelection(t *testing.T) {
+	srv := api.NewServer(testutil.NewTestEngine(t))
+
+	storeBody, _ := json.Marshal(map[string]interface{}{
+		"content":     "forget this deployment note after migration",
+		"summary":     "temporary deployment note",
+		"memory_type": "project",
+	})
+	req := httptest.NewRequest(http.MethodPost, "/v1/tools/store", bytes.NewReader(storeBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST /v1/tools/store status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	}
+
+	forgetBody, _ := json.Marshal(map[string]interface{}{"query": "deployment note after migration"})
+	req = httptest.NewRequest(http.MethodPost, "/v1/tools/forget", bytes.NewReader(forgetBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST /v1/tools/forget by query status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	}
+
+	var payload struct {
+		Status     string `json:"status"`
+		ID         string `json:"id"`
+		ObjectType string `json:"object_type"`
+		Query      string `json:"query"`
+		Match      struct {
+			ID         string `json:"id"`
+			ObjectType string `json:"object_type"`
+			Title      string `json:"title"`
+			Summary    string `json:"summary"`
+		} `json:"match"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode forget query response: %v", err)
+	}
+	if payload.Status != "forgotten" || payload.ID == "" || payload.ObjectType != "memory" || payload.Query == "" || payload.Match.ID != payload.ID || (payload.Match.Title == "" && payload.Match.Summary == "") {
+		t.Fatalf("unexpected forget query response: %+v", payload)
+	}
+}
+
+func TestEntityEndpointsHappyPath(t *testing.T) {
+	srv := api.NewServer(testutil.NewTestEngine(t))
+
+	create := func(content, summary, ref string) {
+		t.Helper()
+		body := strings.NewReader(fmt.Sprintf(`{
+			"content": %q,
+			"summary": %q,
+			"memory_type": "project",
+			"source_refs": [{"kind":"file","ref":%q}]
+		}`, content, summary, ref))
+		req := httptest.NewRequest(http.MethodPost, "/v1/memories", body)
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		srv.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("POST /v1/memories status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+		}
+	}
+
+	create("runbook covers deploy sequence", "deploy runbook", "docs/runbook.md")
+	create("runbook covers rollback sequence", "rollback runbook", "docs/runbook.md")
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/dashboard/entities?q=runbook&limit=10", nil)
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /v1/dashboard/entities status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	}
+
+	var list struct {
+		Count int `json:"count"`
+		Items []struct {
+			ID            string `json:"id"`
+			CanonicalName string `json:"canonical_name"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &list); err != nil {
+		t.Fatalf("decode entities list: %v", err)
+	}
+	if list.Count == 0 || len(list.Items) == 0 {
+		t.Fatalf("expected entity results, got %+v", list)
+	}
+	entityID := list.Items[0].ID
+	if entityID == "" {
+		t.Fatal("entity id is empty")
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/v1/dashboard/entities/"+entityID, nil)
+	rec = httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /v1/dashboard/entities/{id} status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/v1/dashboard/entities/"+entityID+"/relations?limit=10", nil)
+	rec = httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /v1/dashboard/entities/{id}/relations status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	}
+
+	var relations struct {
+		Count int `json:"count"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &relations); err != nil {
+		t.Fatalf("decode entity relations: %v", err)
+	}
+	if relations.Count == 0 {
+		t.Fatal("expected entity relations")
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/v1/dashboard/entities/"+entityID+"/memories?limit=10", nil)
+	rec = httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /v1/dashboard/entities/{id}/memories status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	}
+
+	var memories struct {
+		Count    int `json:"count"`
+		Memories []struct {
+			MemoryID string `json:"memory_id"`
+		} `json:"memories"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &memories); err != nil {
+		t.Fatalf("decode entity memories: %v", err)
+	}
+	if memories.Count == 0 || len(memories.Memories) == 0 {
+		t.Fatalf("expected entity memories, got %+v", memories)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/v1/dashboard/stats/entities?top_k=5", nil)
+	rec = httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /v1/dashboard/stats/entities status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	}
+
+	var stats struct {
+		TotalEntities  int `json:"total_entities"`
+		TotalRelations int `json:"total_relations"`
+		TotalLinks     int `json:"total_links"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &stats); err != nil {
+		t.Fatalf("decode entity stats: %v", err)
+	}
+	if stats.TotalEntities == 0 || stats.TotalRelations == 0 || stats.TotalLinks == 0 {
+		t.Fatalf("unexpected entity stats: %+v", stats)
+	}
+}
+
+func TestImageEndpointsHappyPath(t *testing.T) {
+	srv := api.NewServer(testutil.NewTestEngine(t))
+
+	storeMemoryReq := httptest.NewRequest(http.MethodPost, "/v1/memories", strings.NewReader(`{"content":"decision about cat checklist","summary":"cat checklist decision","memory_type":"project"}`))
+	storeMemoryRec := httptest.NewRecorder()
+	srv.ServeHTTP(storeMemoryRec, storeMemoryReq)
+	if storeMemoryRec.Code != http.StatusOK {
+		t.Fatalf("store memory status = %d, want 200 body=%s", storeMemoryRec.Code, storeMemoryRec.Body.String())
+	}
+	var memory struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(storeMemoryRec.Body.Bytes(), &memory); err != nil {
+		t.Fatalf("decode memory response: %v", err)
+	}
+
+	imagePath := filepath.Join(t.TempDir(), "cat-screenshot.png")
+	if err := os.WriteFile(imagePath, []byte("fake-image"), 0644); err != nil {
+		t.Fatalf("write image: %v", err)
+	}
+	if err := os.WriteFile(imagePath+".ocr.txt", []byte("Important screen text"), 0644); err != nil {
+		t.Fatalf("write sidecar: %v", err)
+	}
+
+	storeBody, _ := json.Marshal(map[string]interface{}{
+		"object_type":       "image",
+		"file_path":         imagePath,
+		"source_session":    "session:image",
+		"linked_memory_ids": []string{memory.ID},
+	})
+	req := httptest.NewRequest(http.MethodPost, "/v1/tools/store", bytes.NewReader(storeBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST /v1/tools/store image status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	}
+
+	var stored struct {
+		Status     string `json:"status"`
+		ID         string `json:"id"`
+		ObjectType string `json:"object_type"`
+		Title      string `json:"title"`
+		Summary    string `json:"summary"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &stored); err != nil {
+		t.Fatalf("decode store_image response: %v", err)
+	}
+	if stored.Status != "stored" || stored.ID == "" || stored.ObjectType != "image" || stored.Title == "" {
+		t.Fatalf("unexpected image store response: %+v", stored)
+	}
+
+	recallBody, _ := json.Marshal(map[string]interface{}{"query": "important screen text"})
+	req = httptest.NewRequest(http.MethodPost, "/v1/tools/recall", bytes.NewReader(recallBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST /v1/tools/recall unified status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	}
+
+	var recalled struct {
+		Count  int `json:"count"`
+		Images []struct {
+			ID string `json:"id"`
+		} `json:"images"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &recalled); err != nil {
+		t.Fatalf("decode unified recall response: %v", err)
+	}
+	if recalled.Count == 0 || len(recalled.Images) == 0 || recalled.Images[0].ID != stored.ID {
+		t.Fatalf("unexpected unified image recall response: %+v", recalled)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/v1/dashboard/images?q=cat&limit=10", nil)
+	rec = httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /v1/dashboard/images status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/v1/dashboard/images/"+stored.ID, nil)
+	rec = httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /v1/dashboard/images/{id} status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/v1/dashboard/images/"+stored.ID+"/links", nil)
+	rec = httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /v1/dashboard/images/{id}/links status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/v1/dashboard/stats/images?top_k=5", nil)
+	rec = httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /v1/dashboard/stats/images status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	}
+
+	var stats struct {
+		TotalImages     int `json:"total_images"`
+		CaptionedImages int `json:"captioned_images"`
+		OCRImages       int `json:"ocr_images"`
+		TotalLinks      int `json:"total_links"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &stats); err != nil {
+		t.Fatalf("decode image stats response: %v", err)
+	}
+	if stats.TotalImages == 0 || stats.CaptionedImages == 0 || stats.OCRImages == 0 || stats.TotalLinks == 0 {
+		t.Fatalf("unexpected image stats: %+v", stats)
+	}
+}
+
+func TestDashboardWorkbenchQueryAndDetailStats(t *testing.T) {
+	srv := api.NewServer(testutil.NewTestEngine(t))
+
+	storeMemoryReq := httptest.NewRequest(http.MethodPost, "/v1/memories", strings.NewReader(`{"content":"runbook decision for latency incident","summary":"latency incident runbook","memory_type":"project","source_refs":[{"kind":"file","ref":"docs/runbook.md"}]}`))
+	storeMemoryRec := httptest.NewRecorder()
+	srv.ServeHTTP(storeMemoryRec, storeMemoryReq)
+	if storeMemoryRec.Code != http.StatusOK {
+		t.Fatalf("store memory status = %d, want 200 body=%s", storeMemoryRec.Code, storeMemoryRec.Body.String())
+	}
+
+	imagePath := filepath.Join(t.TempDir(), "latency-incident.png")
+	if err := os.WriteFile(imagePath, []byte("fake-image"), 0644); err != nil {
+		t.Fatalf("write image: %v", err)
+	}
+	if err := os.WriteFile(imagePath+".ocr.txt", []byte("Latency Incident"), 0644); err != nil {
+		t.Fatalf("write sidecar: %v", err)
+	}
+	storeImageBody, _ := json.Marshal(map[string]interface{}{
+		"object_type": "image",
+		"file_path":   imagePath,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/v1/tools/store", bytes.NewReader(storeImageBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("store image status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	}
+
+	workbenchBody, _ := json.Marshal(map[string]interface{}{"query": "runbook latency incident", "k": 5})
+	req = httptest.NewRequest(http.MethodPost, "/v1/dashboard/workbench/query", bytes.NewReader(workbenchBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST /v1/dashboard/workbench/query status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	}
+
+	var workbench struct {
+		Query    string `json:"query"`
+		Count    int    `json:"count"`
+		Memories []struct {
+			ID string `json:"id"`
+		} `json:"memories"`
+		Images []struct {
+			ID string `json:"id"`
+		} `json:"images"`
+		Entities []struct {
+			ID string `json:"id"`
+		} `json:"entities"`
+		Explain *struct {
+			Query string `json:"query"`
+		} `json:"explain"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &workbench); err != nil {
+		t.Fatalf("decode workbench response: %v", err)
+	}
+	if workbench.Query == "" || workbench.Count == 0 || len(workbench.Images) == 0 || workbench.Explain == nil {
+		t.Fatalf("unexpected workbench response: %+v", workbench)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/v1/dashboard/stats/detail?window_days=30&top_k=5&sample_size=20", nil)
+	rec = httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /v1/dashboard/stats/detail status = %d, want 200 body=%s", rec.Code, rec.Body.String())
+	}
+
+	var detail struct {
+		Overview *struct {
+			TotalMemories int `json:"total_memories"`
+		} `json:"overview"`
+		Images *struct {
+			TotalImages     int                      `json:"total_images"`
+			CaptionedImages int                      `json:"captioned_images"`
+			TopRecentImages []map[string]interface{} `json:"top_recent_images"`
+		} `json:"images"`
+		Entities *struct {
+			TotalEntities int `json:"total_entities"`
+		} `json:"entities"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &detail); err != nil {
+		t.Fatalf("decode detail stats response: %v", err)
+	}
+	if detail.Overview == nil || detail.Images == nil || detail.Entities == nil {
+		t.Fatalf("missing detail sections: %+v", detail)
+	}
+	if detail.Overview.TotalMemories == 0 || detail.Images.TotalImages == 0 || len(detail.Images.TopRecentImages) == 0 {
+		t.Fatalf("unexpected detail stats payload: %+v", detail)
+	}
+}
+
+func TestRemovedLegacyToolRoutesReturnNotFound(t *testing.T) {
+	srv := api.NewServer(testutil.NewTestEngine(t))
+	for _, tc := range []struct {
+		path string
+		body string
+	}{
+		{path: "/v1/tools/maintain", body: `{}`},
+		{path: "/v1/tools/store_image", body: `{"file_path":"x"}`},
+		{path: "/v1/tools/recall_image", body: `{"query":"x"}`},
+		{path: "/v1/tools/link_image", body: `{"image_id":"x"}`},
+	} {
+		req := httptest.NewRequest(http.MethodPost, tc.path, bytes.NewReader([]byte(tc.body)))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		srv.ServeHTTP(rec, req)
+		if rec.Code != http.StatusNotFound {
+			t.Fatalf("POST %s status = %d, want 404 body=%s", tc.path, rec.Code, rec.Body.String())
+		}
+	}
+}
+
 func TestExplainEndpointReturnsAcceptedAndFiltered(t *testing.T) {
 	eng := testutil.NewTestEngine(t)
 	ctx := context.Background()
@@ -270,7 +808,7 @@ func TestStatsOverviewEndpointReturnsAggregates(t *testing.T) {
 		}
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/v1/stats/overview?window_days=30&top_k=10", nil)
+	req := httptest.NewRequest(http.MethodGet, "/v1/dashboard/stats/overview?window_days=30&top_k=10", nil)
 	rec := httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
 
@@ -352,7 +890,7 @@ func TestStatsIntegrityEndpointReturnsChecks(t *testing.T) {
 		t.Fatalf("create status = %d, want 200 body=%s", createRec.Code, createRec.Body.String())
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/v1/stats/integrity?sample_size=50", nil)
+	req := httptest.NewRequest(http.MethodGet, "/v1/dashboard/stats/integrity?sample_size=50", nil)
 	rec := httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
 
@@ -403,39 +941,53 @@ func TestCollectionRejectsInvalidRequests(t *testing.T) {
 		t.Fatalf("missing q status = %d, want 400", rec.Code)
 	}
 
-	req = httptest.NewRequest(http.MethodGet, "/v1/stats/overview?window_days=bad", nil)
+	req = httptest.NewRequest(http.MethodGet, "/v1/dashboard/stats/overview?window_days=bad", nil)
 	rec = httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("invalid window_days status = %d, want 400", rec.Code)
 	}
 
-	req = httptest.NewRequest(http.MethodGet, "/v1/stats/integrity?sample_size=bad", nil)
+	req = httptest.NewRequest(http.MethodGet, "/v1/dashboard/stats/integrity?sample_size=bad", nil)
 	rec = httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("invalid sample_size status = %d, want 400", rec.Code)
 	}
 
-	req = httptest.NewRequest(http.MethodGet, "/v1/stats/overview?top_k=bad", nil)
+	req = httptest.NewRequest(http.MethodGet, "/v1/dashboard/stats/overview?top_k=bad", nil)
 	rec = httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("invalid top_k status = %d, want 400", rec.Code)
 	}
 
-	req = httptest.NewRequest(http.MethodGet, "/v1/stats/overview?risk_w_clarity=-1", nil)
+	req = httptest.NewRequest(http.MethodGet, "/v1/dashboard/stats/overview?risk_w_clarity=-1", nil)
 	rec = httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("invalid risk_w_clarity status = %d, want 400", rec.Code)
 	}
 
-	req = httptest.NewRequest(http.MethodGet, "/v1/stats/overview?risk_w_idle=-1", nil)
+	req = httptest.NewRequest(http.MethodGet, "/v1/dashboard/stats/overview?risk_w_idle=-1", nil)
 	rec = httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("invalid risk_w_idle status = %d, want 400", rec.Code)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/v1/dashboard/entities?limit=bad", nil)
+	rec = httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("invalid entities limit status = %d, want 400", rec.Code)
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/v1/dashboard/stats/entities?top_k=bad", nil)
+	rec = httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("invalid entity top_k status = %d, want 400", rec.Code)
 	}
 }
 
@@ -463,18 +1015,32 @@ func TestRoutesReturn405And404(t *testing.T) {
 		t.Fatalf("GET missing memory status = %d, want 404", rec.Code)
 	}
 
-	req = httptest.NewRequest(http.MethodPost, "/v1/stats/overview", nil)
+	req = httptest.NewRequest(http.MethodPost, "/v1/dashboard/stats/overview", nil)
 	rec = httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
 	if rec.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("POST stats overview status = %d, want 405", rec.Code)
 	}
 
-	req = httptest.NewRequest(http.MethodPost, "/v1/stats/integrity", nil)
+	req = httptest.NewRequest(http.MethodPost, "/v1/dashboard/stats/integrity", nil)
 	rec = httptest.NewRecorder()
 	srv.ServeHTTP(rec, req)
 	if rec.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("POST stats integrity status = %d, want 405", rec.Code)
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/v1/dashboard/entities", nil)
+	rec = httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("POST entities status = %d, want 405", rec.Code)
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/v1/dashboard/stats/entities", nil)
+	rec = httptest.NewRecorder()
+	srv.ServeHTTP(rec, req)
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("POST stats entities status = %d, want 405", rec.Code)
 	}
 }
 

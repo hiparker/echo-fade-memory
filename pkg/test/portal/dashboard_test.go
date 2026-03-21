@@ -63,14 +63,14 @@ func TestV1RouteStillWorksUnderMux(t *testing.T) {
 func TestStatsRoutesWorkUnderMux(t *testing.T) {
 	mux := newPortalMux(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/v1/stats/overview?window_days=30", nil)
+	req := httptest.NewRequest(http.MethodGet, "/v1/dashboard/stats/overview?window_days=30", nil)
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("overview status = %d, want 200 body=%s", rec.Code, rec.Body.String())
 	}
 
-	req = httptest.NewRequest(http.MethodGet, "/v1/stats/integrity?sample_size=20", nil)
+	req = httptest.NewRequest(http.MethodGet, "/v1/dashboard/stats/integrity?sample_size=20", nil)
 	rec = httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {

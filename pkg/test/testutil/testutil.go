@@ -9,6 +9,12 @@ import (
 	"github.com/hiparker/echo-fade-memory/pkg/config"
 	"github.com/hiparker/echo-fade-memory/pkg/core/engine"
 	"github.com/hiparker/echo-fade-memory/pkg/port/embedding"
+	"github.com/hiparker/echo-fade-memory/pkg/port/imageproc/basic"
+	"github.com/hiparker/echo-fade-memory/pkg/port/imagestore"
+	imgsqlite "github.com/hiparker/echo-fade-memory/pkg/port/imagestore/sqlite"
+	"github.com/hiparker/echo-fade-memory/pkg/port/kgstore"
+	kgsqlite "github.com/hiparker/echo-fade-memory/pkg/port/kgstore/sqlite"
+	"github.com/hiparker/echo-fade-memory/pkg/port/memstore"
 	"github.com/hiparker/echo-fade-memory/pkg/port/store"
 	"github.com/hiparker/echo-fade-memory/pkg/port/store/sqlite"
 	"github.com/hiparker/echo-fade-memory/pkg/port/vector/local"
@@ -36,6 +42,24 @@ func NewFakeEmbedder() embedding.Provider {
 
 func NewTestEngine(t *testing.T) *engine.Engine {
 	t.Helper()
+	eng, _, _ := NewTestEngineWithImage(t)
+	return eng
+}
+
+func NewTestEngineWithKG(t *testing.T) (*engine.Engine, kgstore.Store) {
+	t.Helper()
+	eng, graph, _ := NewTestEngineWithImage(t)
+	return eng, graph
+}
+
+func NewTestEngineWithImage(t *testing.T) (*engine.Engine, kgstore.Store, imagestore.Store) {
+	t.Helper()
+	eng, _, graphStore, imageStore := NewTestEngineWithStores(t)
+	return eng, graphStore, imageStore
+}
+
+func NewTestEngineWithStores(t *testing.T) (*engine.Engine, memstore.MemoryStore, kgstore.Store, imagestore.Store) {
+	t.Helper()
 
 	tmp := t.TempDir()
 	cfg := config.Default()
@@ -59,9 +83,29 @@ func NewTestEngine(t *testing.T) *engine.Engine {
 		t.Fatalf("OpenOrCreateBleve: %v", err)
 	}
 
-	eng := engine.NewWithDeps(cfg, mem, vectorStore, bleveStore, NewFakeEmbedder())
+	graphStore, err := kgsqlite.New(filepath.Join(tmp, "kg.db"))
+	if err != nil {
+		t.Fatalf("kgsqlite.New: %v", err)
+	}
+
+	imageStore, err := imgsqlite.New(filepath.Join(tmp, "images.db"))
+	if err != nil {
+		t.Fatalf("imgsqlite.New: %v", err)
+	}
+
+	imageVectorStore, err := local.New(filepath.Join(tmp, "image-vectors.json"))
+	if err != nil {
+		t.Fatalf("local.New image: %v", err)
+	}
+
+	imageBleveStore, err := store.OpenOrCreateBleve(filepath.Join(tmp, "image-bleve"))
+	if err != nil {
+		t.Fatalf("OpenOrCreateBleve image: %v", err)
+	}
+
+	eng := engine.NewWithDepsFull(cfg, mem, vectorStore, bleveStore, NewFakeEmbedder(), graphStore, imageStore, imageVectorStore, imageBleveStore, basic.New())
 	t.Cleanup(func() {
 		_ = eng.Close()
 	})
-	return eng
+	return eng, mem, graphStore, imageStore
 }
