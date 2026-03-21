@@ -23,6 +23,20 @@ func New(path string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+	if _, err := db.Exec(`PRAGMA journal_mode=WAL;`); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	if _, err := db.Exec(`PRAGMA busy_timeout=5000;`); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	if _, err := db.Exec(`PRAGMA synchronous=NORMAL;`); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 	s := &Store{db: db}
 	if err := s.migrate(); err != nil {
 		db.Close()
