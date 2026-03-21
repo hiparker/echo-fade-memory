@@ -18,7 +18,8 @@ High-priority recall cues:
 - what the user is wearing, where they are, what they recently said or did
 
 Useful commands:
-- ./scripts/recall-memory.sh "<query>"
-- ./scripts/store-memory.sh "<content>" --type preference|project|goal
+- ./scripts/recall.sh "<query>"
+- ./scripts/store.sh "<content>" --type preference|project|goal
+- ./scripts/store.sh "/absolute/path/to/image.png" --object-type image --session "session:img"
 </echo-fade-memory-reminder>
 EOF
